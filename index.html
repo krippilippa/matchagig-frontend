@@ -44,6 +44,16 @@
         <label for="summary-text" class="label">Summary</label>
         <textarea id="summary-text" class="textarea" rows="12" placeholder="Summary will appear here..." spellcheck="false"></textarea>
       </section>
+
+      <section class="redflags">
+        <div class="actions">
+          <button id="btn-redflags-fileid" type="button">Red flags (use fileId)</button>
+          <button id="btn-redflags-text" type="button">Red flags (use text)</button>
+          <span id="redflags-status" class="status" aria-live="polite"></span>
+        </div>
+        <label for="redflags-text" class="label">Red flags</label>
+        <textarea id="redflags-text" class="textarea" rows="8" placeholder="Red flags result will appear here..." spellcheck="false"></textarea>
+      </section>
     </main>
 
     <script src="./app.js" defer></script>

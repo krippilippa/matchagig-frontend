@@ -19,6 +19,10 @@
   var summaryOut = document.getElementById('summary-text');
   var btnSummaryFileId = document.getElementById('btn-summary-fileid');
   var btnSummaryText = document.getElementById('btn-summary-text');
+  var redflagsStatus = document.getElementById('redflags-status');
+  var redflagsOut = document.getElementById('redflags-text');
+  var btnRedflagsFileId = document.getElementById('btn-redflags-fileid');
+  var btnRedflagsText = document.getElementById('btn-redflags-text');
 
   function setStatus(message) {
     statusText.textContent = message || '';
@@ -121,6 +125,48 @@
       });
   }
 
+  function redflagsUsingFileId() {
+    var fileId = '';
+    try { fileId = localStorage.getItem('lastFileId') || ''; } catch (_) {}
+    if (!fileId) {
+      redflagsStatus.textContent = 'No stored fileId found. Upload a file first.';
+      return;
+    }
+    redflags({ fileId: fileId });
+  }
+
+  function redflagsUsingText() {
+    var text = output.value || '';
+    if (!text) {
+      redflagsStatus.textContent = 'No text available. Upload a file first.';
+      return;
+    }
+    redflags({ text: text });
+  }
+
+  function redflags(payload) {
+    redflagsStatus.textContent = 'Scanning…';
+    redflagsOut.value = '';
+    fetch(API_BASE + '/v1/redflags', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(function (res) {
+        if (!res.ok) return res.json().then(function (j) { throw j; });
+        return res.json();
+      })
+      .then(function (data) {
+        redflagsStatus.textContent = 'OK';
+        redflagsOut.value = data && data.text ? data.text : '';
+      })
+      .catch(function (err) {
+        var message = 'Red flags failed';
+        try { if (err && err.error && err.error.message) message = err.error.message; } catch (_) {}
+        redflagsStatus.textContent = message;
+      });
+  }
+
   // Drag and drop events
   ['dragenter', 'dragover'].forEach(function (evtName) {
     dropZone.addEventListener(evtName, function (e) {
@@ -152,6 +198,8 @@
   // Summary buttons
   btnSummaryFileId.addEventListener('click', summarizeUsingFileId);
   btnSummaryText.addEventListener('click', summarizeUsingText);
+  btnRedflagsFileId.addEventListener('click', redflagsUsingFileId);
+  btnRedflagsText.addEventListener('click', redflagsUsingText);
 })();
 
 
