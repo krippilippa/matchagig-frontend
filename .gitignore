@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# Node / tooling (future-proof)
+node_modules/
+dist/
+build/
+.cache/
+
+# Env / keys
+.env
+.env.*
+
+

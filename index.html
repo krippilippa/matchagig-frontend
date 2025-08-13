@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MatchaGig — Resume Matcher (MVP)</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <h1>MatchaGig</h1>
+        <p class="subtitle">Upload your résumé (PDF/DOCX/TXT). We’ll clean and linearize it.</p>
+      </header>
+
+      <section class="uploader">
+        <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Drop file here or click to select">
+          <div class="drop-zone__content">
+            <strong>Drag & drop</strong> your résumé here
+            <span class="muted">or click to choose a file</span>
+            <span class="hint">Max 10 MB. Accepted: .pdf, .docx, .txt</span>
+          </div>
+          <input id="file-input" type="file" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,text/plain,.txt" hidden />
+        </div>
+        <div class="actions">
+          <button id="choose-file-btn" type="button" class="btn">Choose file</button>
+          <span id="status-text" class="status" aria-live="polite"></span>
+        </div>
+      </section>
+
+      <section class="output">
+        <label for="output-text" class="label">Cleaned résumé text</label>
+        <textarea id="output-text" class="textarea" rows="18" placeholder="The cleaned, linearized résumé text will appear here..." spellcheck="false"></textarea>
+      </section>
+    </main>
+
+    <script src="./app.js" defer></script>
+  </body>
+  </html>
+
+
