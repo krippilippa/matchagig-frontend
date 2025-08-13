@@ -32,6 +32,18 @@
         <label for="output-text" class="label">Cleaned résumé text</label>
         <textarea id="output-text" class="textarea" rows="18" placeholder="The cleaned, linearized résumé text will appear here..." spellcheck="false"></textarea>
       </section>
+
+      <section class="summary">
+        <label for="job-title" class="label">Job title (optional)</label>
+        <input id="job-title" type="text" />
+        <div class="actions">
+          <button id="btn-summary-fileid" type="button">Summarize (use fileId)</button>
+          <button id="btn-summary-text" type="button">Summarize (use text)</button>
+          <span id="summary-status" class="status" aria-live="polite"></span>
+        </div>
+        <label for="summary-text" class="label">Summary</label>
+        <textarea id="summary-text" class="textarea" rows="12" placeholder="Summary will appear here..." spellcheck="false"></textarea>
+      </section>
     </main>
 
     <script src="./app.js" defer></script>

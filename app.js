@@ -14,6 +14,11 @@
   var chooseBtn = document.getElementById('choose-file-btn');
   var output = document.getElementById('output-text');
   var statusText = document.getElementById('status-text');
+  var jobTitleInput = document.getElementById('job-title');
+  var summaryStatus = document.getElementById('summary-status');
+  var summaryOut = document.getElementById('summary-text');
+  var btnSummaryFileId = document.getElementById('btn-summary-fileid');
+  var btnSummaryText = document.getElementById('btn-summary-text');
 
   function setStatus(message) {
     statusText.textContent = message || '';
@@ -74,6 +79,48 @@
       });
   }
 
+  function summarizeUsingFileId() {
+    var fileId = '';
+    try { fileId = localStorage.getItem('lastFileId') || ''; } catch (_) {}
+    if (!fileId) {
+      summaryStatus.textContent = 'No stored fileId found. Upload a file first.';
+      return;
+    }
+    summarize({ fileId: fileId, jobTitle: jobTitleInput.value || undefined });
+  }
+
+  function summarizeUsingText() {
+    var text = output.value || '';
+    if (!text) {
+      summaryStatus.textContent = 'No text available. Upload a file first.';
+      return;
+    }
+    summarize({ text: text, jobTitle: jobTitleInput.value || undefined });
+  }
+
+  function summarize(payload) {
+    summaryStatus.textContent = 'Summarizing…';
+    summaryOut.value = '';
+    fetch(API_BASE + '/v1/summary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(function (res) {
+        if (!res.ok) return res.json().then(function (j) { throw j; });
+        return res.json();
+      })
+      .then(function (data) {
+        summaryStatus.textContent = 'OK';
+        summaryOut.value = data && data.text ? data.text : '';
+      })
+      .catch(function (err) {
+        var message = 'Summary failed';
+        try { if (err && err.error && err.error.message) message = err.error.message; } catch (_) {}
+        summaryStatus.textContent = message;
+      });
+  }
+
   // Drag and drop events
   ['dragenter', 'dragover'].forEach(function (evtName) {
     dropZone.addEventListener(evtName, function (e) {
@@ -101,6 +148,10 @@
   dropZone.addEventListener('click', function () { fileInput.click(); });
   chooseBtn.addEventListener('click', function () { fileInput.click(); });
   fileInput.addEventListener('change', function (e) { handleFiles(e.target.files); });
+
+  // Summary buttons
+  btnSummaryFileId.addEventListener('click', summarizeUsingFileId);
+  btnSummaryText.addEventListener('click', summarizeUsingText);
 })();
 
 

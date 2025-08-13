@@ -10,4 +10,7 @@
 
 .textarea { width: 100%; min-height: 300px; padding: 8px; border: 1px solid; resize: vertical; }
 
+.summary { margin-top: 16px; }
+.actions { margin: 8px 0; display: inline-flex; gap: 8px; align-items: center; }
+
 
