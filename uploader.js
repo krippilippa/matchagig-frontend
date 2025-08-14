@@ -71,11 +71,27 @@
 
     if (fileId) {
       Api.summarize({ fileId: fileId, jobTitle: jobTitleVal }).then(function(r){ if (summaryBox) summaryBox.value = r && r.text ? r.text : ''; });
-      Api.redflags({ fileId: fileId }).then(function(r){ if (redflagsBox) redflagsBox.value = r && r.text ? r.text : ''; });
+      Api.redflags({ fileId: fileId }).then(function(r){ if (redflagsBox) redflagsBox.value = formatRedflagsResponse(r); });
     } else if (fallbackText) {
       Api.summarize({ text: fallbackText, jobTitle: jobTitleVal }).then(function(r){ if (summaryBox) summaryBox.value = r && r.text ? r.text : ''; });
-      Api.redflags({ text: fallbackText }).then(function(r){ if (redflagsBox) redflagsBox.value = r && r.text ? r.text : ''; });
+      Api.redflags({ text: fallbackText }).then(function(r){ if (redflagsBox) redflagsBox.value = formatRedflagsResponse(r); });
     }
+  }
+
+  function formatRedflagsResponse(resp){
+    try {
+      if (resp && Array.isArray(resp.items)) {
+        if (resp.items.length === 0) return 'No major red flags';
+        return resp.items.map(function(it){
+          var title = it && it.title ? it.title : '';
+          var desc = it && it.description ? it.description : '';
+          if (title && desc) return '- ' + title + ': ' + desc;
+          return '- ' + (title || desc || '');
+        }).join('\n');
+      }
+      if (resp && typeof resp.text === 'string') return resp.text; // backward compat
+    } catch (_) {}
+    return '';
   }
 
   window.Uploader = { init: initUploader };
