@@ -25,10 +25,11 @@
 /* Simple boxes for readability (still minimal styles) */
 .section { border: 1px solid; padding: 8px; }
 .section-title { font-weight: bold; margin-bottom: 6px; }
-.info { display: grid; gap: 4px; }
-.info-row { display: grid; grid-template-columns: 140px 1fr; gap: 8px; }
-.info-key { font-weight: bold; }
+.info { display: grid; gap: 6px; }
+.info-item { border: 1px solid; padding: 6px; }
+.info-key { font-weight: bold; margin-bottom: 4px; }
 .list { display: grid; gap: 6px; }
 .flag { border: 1px solid; padding: 6px; }
+.flag-title { font-weight: bold; margin-bottom: 4px; }
 
 
