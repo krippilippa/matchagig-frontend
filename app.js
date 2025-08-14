@@ -16,6 +16,14 @@
   var chooseBtn = document.getElementById('choose-file-btn');
   var output = document.getElementById('output-text');
   var statusText = document.getElementById('status-text');
+  var sectionHeader = document.getElementById('section-header');
+  var sectionUploader = document.getElementById('section-uploader');
+  var sectionOutput = document.getElementById('section-output');
+  var sectionSummary = document.getElementById('section-summary');
+  var sectionRedflags = document.getElementById('section-redflags');
+  var sectionAllResumes = document.getElementById('section-allresumes');
+  var pdfEmbed = document.getElementById('pdf-embed');
+  var allResumesRight = document.getElementById('allresumes-right');
   var jobTitleInput = document.getElementById('job-title');
   var summaryStatus = document.getElementById('summary-status');
   var summaryOut = document.getElementById('summary-text');
@@ -70,11 +78,31 @@
         return res.json();
       })
       .then(function (data) {
-        // Expected shape: { fileId, text, sections: [...] }
-        setStatus('Uploaded successfully. fileId: ' + data.fileId);
+        // Expected (future): { fileId, candidateName, email, blurb, text, pdfUrl? }
+        setStatus('Uploaded successfully. fileId: ' + data.fileId + (file && file.name ? ' (' + file.name + ')' : ''));
         output.value = data && data.text ? data.text : '';
-        // Store fileId for potential future queries
+        // Store fileId and basic candidate info for All resumes view
+        try {
+          var stored = JSON.parse(localStorage.getItem('candidates') || '[]');
+          var candidate = {
+            id: data.fileId || '',
+            name: data.candidateName || file.name || 'Unnamed',
+            email: data.email || '',
+            blurb: data.blurb || '',
+            text: data.text || '',
+            pdfUrl: data.pdfUrl || ''
+          };
+          // de-dup by id
+          var existingIdx = stored.findIndex(function (c) { return c.id === candidate.id; });
+          if (existingIdx >= 0) stored[existingIdx] = candidate; else stored.push(candidate);
+          localStorage.setItem('candidates', JSON.stringify(stored));
+        } catch (_) {}
         try { localStorage.setItem('lastFileId', data.fileId || ''); } catch (_) {}
+        // If we are in All resumes view, refresh list
+        renderSidebarAllResumes();
+        renderAllResumesRight(null);
+        // If PDF selected, attempt preview
+        previewPdfFile(file, data);
       })
       .catch(function (err) {
         var message = 'Upload failed';
@@ -83,6 +111,20 @@
         } catch (_) {}
         setStatus(message);
       });
+  }
+
+  function previewPdfFile(file, serverData) {
+    // Local preview if uploaded file is PDF, else try serverData.pdfUrl
+    if (file && /\.pdf$/i.test(file.name)) {
+      try {
+        var url = URL.createObjectURL(file);
+        pdfEmbed.src = url;
+      } catch (_) {}
+      return;
+    }
+    if (serverData && serverData.pdfUrl) {
+      pdfEmbed.src = serverData.pdfUrl;
+    }
   }
 
   function summarizeUsingFileId() {
@@ -279,37 +321,77 @@
     container.innerHTML = '';
     var list = document.createElement('ul');
     list.className = 'resume-list';
-    data.allResumes.forEach(function (r) {
+    var all = getAllCandidates();
+    var items = all.length ? all : data.allResumes;
+    items.forEach(function (r) {
       var li = document.createElement('li');
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'resume-link';
-      btn.textContent = r.name;
+      btn.textContent = r.name || 'Unnamed';
       btn.setAttribute('data-resume-id', r.id);
+      if (r.blurb) btn.title = r.blurb; // hover shows blurb
       li.appendChild(btn);
       list.appendChild(li);
     });
     container.appendChild(list);
   }
 
+  function getAllCandidates() {
+    try {
+      var stored = JSON.parse(localStorage.getItem('candidates') || '[]');
+      return Array.isArray(stored) ? stored : [];
+    } catch (_) { return []; }
+  }
+
+  function setMainView(view) {
+    // view: 'jobs' | 'all'
+    if (view === 'all') {
+      sectionHeader.hidden = true;
+      sectionOutput.hidden = true;
+      sectionSummary.hidden = true;
+      sectionRedflags.hidden = true;
+      sectionAllResumes.hidden = false;
+      // Show only uploader block above (keep uploader visible for All resumes)
+      sectionUploader.hidden = false;
+    } else {
+      sectionHeader.hidden = false;
+      sectionOutput.hidden = false;
+      sectionSummary.hidden = false;
+      sectionRedflags.hidden = false;
+      sectionAllResumes.hidden = true;
+      sectionUploader.hidden = false;
+    }
+  }
+
   function wireSidebarEvents() {
     var allBtn = document.getElementById('btn-all-resumes');
     var jobsBtn = document.getElementById('btn-jobs');
-    if (allBtn) allBtn.addEventListener('click', renderSidebarAllResumes);
-    if (jobsBtn) jobsBtn.addEventListener('click', renderSidebarJobs);
+    if (allBtn) allBtn.addEventListener('click', function(){ renderSidebarAllResumes(); setMainView('all'); });
+    if (jobsBtn) jobsBtn.addEventListener('click', function(){ renderSidebarJobs(); setMainView('jobs'); });
     var container = document.getElementById('sidebar-content');
     if (!container) return;
     container.addEventListener('click', function (e) {
       var target = e.target;
       if (target && target.classList.contains('resume-link')) {
         var rid = target.getAttribute('data-resume-id');
-        var jid = target.getAttribute('data-job-id');
-        alert('Open resume ' + rid + ' under job ' + jid + ' (placeholder)');
+        renderAllResumesRight(rid);
       }
     });
   }
 
+  function renderAllResumesRight(resumeId) {
+    if (!allResumesRight) return;
+    var all = getAllCandidates();
+    var selected = resumeId ? all.find(function (c) { return c.id === resumeId; }) : null;
+    // For now, just clear right panel. We'll fill later as per next step.
+    allResumesRight.innerHTML = '';
+    // Keep PDF preview as left side only via #pdf-embed
+  }
+
   loadSidebar();
+  // Default view: Jobs
+  setMainView('jobs');
 })();
 
 

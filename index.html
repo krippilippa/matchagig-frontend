@@ -11,12 +11,12 @@
     <div class="layout">
       <aside id="sidebar"></aside>
       <main class="container" id="main">
-      <header class="header">
+      <header id="section-header" class="header">
         <h1>MatchaGig</h1>
         <p class="subtitle">Upload your résumé (PDF/DOCX/TXT). We’ll clean and linearize it.</p>
       </header>
 
-      <section class="uploader">
+      <section id="section-uploader" class="uploader">
         <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Drop file here or click to select">
           <div class="drop-zone__content">
             <strong>Drag & drop</strong> your résumé here
@@ -31,12 +31,12 @@
         </div>
       </section>
 
-      <section class="output">
+      <section id="section-output" class="output">
         <label for="output-text" class="label">Cleaned résumé text</label>
         <textarea id="output-text" class="textarea" rows="18" placeholder="The cleaned, linearized résumé text will appear here..." spellcheck="false"></textarea>
       </section>
 
-      <section class="summary">
+      <section id="section-summary" class="summary">
         <label for="job-title" class="label">Job title (optional)</label>
         <input id="job-title" type="text" />
         <div class="actions">
@@ -48,7 +48,7 @@
         <textarea id="summary-text" class="textarea" rows="12" placeholder="Summary will appear here..." spellcheck="false"></textarea>
       </section>
 
-      <section class="redflags">
+      <section id="section-redflags" class="redflags">
         <div class="actions">
           <button id="btn-redflags-fileid" type="button">Red flags (use fileId)</button>
           <button id="btn-redflags-text" type="button">Red flags (use text)</button>
@@ -56,6 +56,15 @@
         </div>
         <label for="redflags-text" class="label">Red flags</label>
         <textarea id="redflags-text" class="textarea" rows="8" placeholder="Red flags result will appear here..." spellcheck="false"></textarea>
+      </section>
+
+      <section id="section-allresumes" hidden>
+        <div class="split">
+          <div>
+            <embed id="pdf-embed" type="application/pdf" />
+          </div>
+          <div id="allresumes-right"></div>
+        </div>
       </section>
       </main>
     </div>
