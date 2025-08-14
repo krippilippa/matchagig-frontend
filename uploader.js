@@ -70,10 +70,10 @@
     if (redflagsBox) redflagsBox.value = '';
 
     if (fileId) {
-      Api.summarize({ fileId: fileId, jobTitle: jobTitleVal }).then(function(r){ if (summaryBox) summaryBox.value = r && r.text ? r.text : ''; });
+      Api.summarize({ fileId: fileId, jobTitle: jobTitleVal }).then(function(r){ if (summaryBox) summaryBox.value = formatSummaryResponse(r); });
       Api.redflags({ fileId: fileId }).then(function(r){ if (redflagsBox) redflagsBox.value = formatRedflagsResponse(r); });
     } else if (fallbackText) {
-      Api.summarize({ text: fallbackText, jobTitle: jobTitleVal }).then(function(r){ if (summaryBox) summaryBox.value = r && r.text ? r.text : ''; });
+      Api.summarize({ text: fallbackText, jobTitle: jobTitleVal }).then(function(r){ if (summaryBox) summaryBox.value = formatSummaryResponse(r); });
       Api.redflags({ text: fallbackText }).then(function(r){ if (redflagsBox) redflagsBox.value = formatRedflagsResponse(r); });
     }
   }
@@ -90,6 +90,51 @@
         }).join('\n');
       }
       if (resp && typeof resp.text === 'string') return resp.text; // backward compat
+    } catch (_) {}
+    return '';
+  }
+
+  function formatSummaryResponse(resp){
+    // New structured format per README. Fallback to legacy text if present.
+    try {
+      if (resp && typeof resp === 'object' && !Array.isArray(resp)) {
+        if (typeof resp.text === 'string') return resp.text; // legacy support
+
+        var lines = [];
+        var years = typeof resp.yearsExperience === 'number' ? resp.yearsExperience : undefined;
+        var jobsCount = typeof resp.jobsCount === 'number' ? resp.jobsCount : undefined;
+        if (years != null || jobsCount != null) {
+          var parts = [];
+          if (years != null) parts.push(years + ' yrs exp');
+          if (jobsCount != null) parts.push(jobsCount + ' roles');
+          lines.push('Experience: ' + parts.join(', '));
+        }
+
+        if (Array.isArray(resp.companies) && resp.companies.length) {
+          lines.push('Companies: ' + resp.companies.slice(0, 5).join(', '));
+        }
+
+        if (Array.isArray(resp.roles) && resp.roles.length) {
+          lines.push('Roles: ' + resp.roles.slice(0, 5).join(', '));
+        }
+
+        if (Array.isArray(resp.education) && resp.education.length) {
+          var e = resp.education[0] || {};
+          var edu = [e.degree, e.field, e.institution, e.year].filter(Boolean).join(', ');
+          if (edu) lines.push('Education: ' + edu);
+        }
+
+        if (Array.isArray(resp.hardSkills) && resp.hardSkills.length) {
+          lines.push('Hard skills: ' + resp.hardSkills.slice(0, 8).join(', '));
+        }
+
+        if (!lines.length && Array.isArray(resp.softSkills) && resp.softSkills.length) {
+          lines.push('Soft skills: ' + resp.softSkills.slice(0, 8).join(', '));
+        }
+
+        // Ensure roughly 5 lines; trim if overly long
+        return lines.slice(0, 5).join('\n');
+      }
     } catch (_) {}
     return '';
   }
