@@ -209,7 +209,7 @@
       .then(function (res) { return res.text(); })
       .then(function (html) {
         sidebarEl.innerHTML = html;
-        renderSidebarGroups();
+        renderSidebarJobs();
         wireSidebarEvents();
       });
   }
@@ -241,9 +241,9 @@
     };
   }
 
-  function renderSidebarGroups() {
+  function renderSidebarJobs() {
     var data = getMockData();
-    var container = document.getElementById('job-groups');
+    var container = document.getElementById('sidebar-content');
     if (!container) return;
     container.innerHTML = '';
     data.jobs.forEach(function (job) {
@@ -272,14 +272,32 @@
     });
   }
 
+  function renderSidebarAllResumes() {
+    var data = getMockData();
+    var container = document.getElementById('sidebar-content');
+    if (!container) return;
+    container.innerHTML = '';
+    var list = document.createElement('ul');
+    list.className = 'resume-list';
+    data.allResumes.forEach(function (r) {
+      var li = document.createElement('li');
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'resume-link';
+      btn.textContent = r.name;
+      btn.setAttribute('data-resume-id', r.id);
+      li.appendChild(btn);
+      list.appendChild(li);
+    });
+    container.appendChild(list);
+  }
+
   function wireSidebarEvents() {
     var allBtn = document.getElementById('btn-all-resumes');
-    if (allBtn) {
-      allBtn.addEventListener('click', function () {
-        alert('All resumes view (placeholder)');
-      });
-    }
-    var container = document.getElementById('job-groups');
+    var jobsBtn = document.getElementById('btn-jobs');
+    if (allBtn) allBtn.addEventListener('click', renderSidebarAllResumes);
+    if (jobsBtn) jobsBtn.addEventListener('click', renderSidebarJobs);
+    var container = document.getElementById('sidebar-content');
     if (!container) return;
     container.addEventListener('click', function (e) {
       var target = e.target;
