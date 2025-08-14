@@ -9,6 +9,8 @@
   'use strict';
 
   var API_BASE = 'http://localhost:8787';
+  // Sidebar mount
+  var sidebarEl = document.getElementById('sidebar');
   var dropZone = document.getElementById('drop-zone');
   var fileInput = document.getElementById('file-input');
   var chooseBtn = document.getElementById('choose-file-btn');
@@ -200,6 +202,96 @@
   btnSummaryText.addEventListener('click', summarizeUsingText);
   btnRedflagsFileId.addEventListener('click', redflagsUsingFileId);
   btnRedflagsText.addEventListener('click', redflagsUsingText);
+
+  // Sidebar bootstrap (mock data + HTML load)
+  function loadSidebar() {
+    fetch('sidebar.html')
+      .then(function (res) { return res.text(); })
+      .then(function (html) {
+        sidebarEl.innerHTML = html;
+        renderSidebarGroups();
+        wireSidebarEvents();
+      });
+  }
+
+  function getMockData() {
+    return {
+      jobs: [
+        {
+          id: 'job_1',
+          title: 'Senior Frontend Engineer',
+          resumes: [
+            { id: 'r_1', name: 'Alice Johnson' },
+            { id: 'r_2', name: 'Bob Smith' }
+          ]
+        },
+        {
+          id: 'job_2',
+          title: 'Backend Developer',
+          resumes: [
+            { id: 'r_3', name: 'Carol Lee' }
+          ]
+        }
+      ],
+      allResumes: [
+        { id: 'r_1', name: 'Alice Johnson' },
+        { id: 'r_2', name: 'Bob Smith' },
+        { id: 'r_3', name: 'Carol Lee' }
+      ]
+    };
+  }
+
+  function renderSidebarGroups() {
+    var data = getMockData();
+    var container = document.getElementById('job-groups');
+    if (!container) return;
+    container.innerHTML = '';
+    data.jobs.forEach(function (job) {
+      var group = document.createElement('div');
+      group.className = 'group';
+      var details = document.createElement('details');
+      var summary = document.createElement('summary');
+      summary.textContent = job.title;
+      details.appendChild(summary);
+      var list = document.createElement('ul');
+      list.className = 'resume-list';
+      job.resumes.forEach(function (r) {
+        var li = document.createElement('li');
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'resume-link';
+        btn.textContent = r.name;
+        btn.setAttribute('data-resume-id', r.id);
+        btn.setAttribute('data-job-id', job.id);
+        li.appendChild(btn);
+        list.appendChild(li);
+      });
+      details.appendChild(list);
+      group.appendChild(details);
+      container.appendChild(group);
+    });
+  }
+
+  function wireSidebarEvents() {
+    var allBtn = document.getElementById('btn-all-resumes');
+    if (allBtn) {
+      allBtn.addEventListener('click', function () {
+        alert('All resumes view (placeholder)');
+      });
+    }
+    var container = document.getElementById('job-groups');
+    if (!container) return;
+    container.addEventListener('click', function (e) {
+      var target = e.target;
+      if (target && target.classList.contains('resume-link')) {
+        var rid = target.getAttribute('data-resume-id');
+        var jid = target.getAttribute('data-job-id');
+        alert('Open resume ' + rid + ' under job ' + jid + ' (placeholder)');
+      }
+    });
+  }
+
+  loadSidebar();
 })();
 
 

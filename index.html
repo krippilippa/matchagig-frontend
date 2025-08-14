@@ -7,7 +7,10 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="container">
+    <link rel="stylesheet" href="./sidebar.css" />
+    <div class="layout">
+      <aside id="sidebar"></aside>
+      <main class="container" id="main">
       <header class="header">
         <h1>MatchaGig</h1>
         <p class="subtitle">Upload your résumé (PDF/DOCX/TXT). We’ll clean and linearize it.</p>
@@ -54,7 +57,8 @@
         <label for="redflags-text" class="label">Red flags</label>
         <textarea id="redflags-text" class="textarea" rows="8" placeholder="Red flags result will appear here..." spellcheck="false"></textarea>
       </section>
-    </main>
+      </main>
+    </div>
 
     <script src="./app.js" defer></script>
   </body>
