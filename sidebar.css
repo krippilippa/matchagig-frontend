@@ -12,6 +12,5 @@ nav { display: block; }
 .resume-list li { margin: 2px 0; }
 .resume-link { background: none; padding: 4px; width: 100%; text-align: left; }
 
-.toggle { display: inline-flex; gap: 8px; }
-#sidebar-search { display: block; width: 100%; margin: 8px 0; }
+/* removed jobs toggle and search */
 

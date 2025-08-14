@@ -41,7 +41,7 @@ Quick health check.
 ---
 
 ### POST /v1/upload
-Upload a résumé (PDF/DOCX/TXT). The server uploads the file to OpenAI Files and asks the Responses API to return clean, linearized text. No local parsing.
+Upload a résumé (PDF/DOCX/TXT). The server uploads the file to OpenAI Files and asks the Responses API to return structured JSON with key fields and faithful full text. No local parsing.
 
 - Content-Type: `multipart/form-data`
 - Form fields:
@@ -51,11 +51,10 @@ Upload a résumé (PDF/DOCX/TXT). The server uploads the file to OpenAI Files an
 ```json
 {
   "fileId": "file_abc123",
-  "text": "...cleaned resume text...",
-  "sections": [
-    { "heading": "Experience", "body": "..." },
-    { "heading": "Education", "body": "..." }
-  ]
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "blurb": "Full-stack engineer with 7+ years building SaaS and APIs in Node and React.",
+  "text": "...verbatim plain-text extraction of the document..."
 }
 ```
 - Response 400:
@@ -107,8 +106,79 @@ curl -X POST http://localhost:8787/v1/query \
 
 ---
 
+### POST /v1/summary
+Generate a concise résumé summary with fixed formatting rules.
+
+- Content-Type: `application/json`
+- Body: provide either `fileId` or `text` (not both); optional `jobTitle`
+```json
+{ "fileId": "file_abc123", "jobTitle": "Senior Frontend Engineer" }
+```
+or
+```json
+{ "text": "...resume plain text...", "jobTitle": "Senior Frontend Engineer" }
+```
+- Response 200:
+```json
+{ "text": "- **Experience:** ...\n- **Skills:** ...\n- **Projects:** ...\n- **Education:** ...\n- **Certifications:** ...\n\n**Concerns & Requirements:** ...\n\n**Fit signal:** react, graphql, leadership" }
+```
+- Response 400:
+```json
+{ "error": { "code": "BAD_REQUEST", "message": "Provide either fileId OR text, not both", "details": {} } }
+```
+
+- cURL examples:
+```bash
+curl -X POST http://localhost:8787/v1/summary \
+  -H 'Content-Type: application/json' \
+  -d '{"fileId":"file_abc123","jobTitle":"Senior Frontend Engineer"}'
+
+curl -X POST http://localhost:8787/v1/summary \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"...resume text...","jobTitle":"Senior Frontend Engineer"}'
+```
+
+
 ## Integration Notes
-- CORS is open in dev. You can call from the browser directly during prototyping.
-- Expect Responses API calls to take a few seconds for large files.
-- If port 8787 is busy, set `PORT` in `.env`.
-- Returned `fileId` is stable and can be stored for future queries.
+ - CORS is open in dev. You can call from the browser directly during prototyping.
+ - Expect Responses API calls to take a few seconds for large files.
+ - If port 8787 is busy, set `PORT` in `.env`.
+ - Returned `fileId` is stable and can be stored for future queries.
+
+---
+
+### POST /v1/redflags
+Scan a résumé for objective red flags. Returns either a short bulleted list (max 5) or the exact string "✅ No major red flags".
+
+- Content-Type: `application/json`
+- Body: provide either `fileId` or `text` (not both)
+```json
+{ "fileId": "file_abc123" }
+```
+or
+```json
+{ "text": "...resume plain text..." }
+```
+- Response 200 (examples):
+```json
+{ "text": "- Gap in employment: Jan 2020–Oct 2020 (9 months).\n- Tenure < 12 months at XYZ (8 months)." }
+```
+or
+```json
+{ "text": "✅ No major red flags" }
+```
+- Response 400:
+```json
+{ "error": { "code": "BAD_REQUEST", "message": "Provide either fileId OR text, not both", "details": {} } }
+```
+
+- cURL examples:
+```bash
+curl -X POST http://localhost:8787/v1/redflags \
+  -H 'Content-Type: application/json' \
+  -d '{"fileId":"file_abc123"}'
+
+curl -X POST http://localhost:8787/v1/redflags \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"...resume text..."}'
+```
