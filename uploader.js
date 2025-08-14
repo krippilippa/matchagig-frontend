@@ -24,7 +24,20 @@
 
   function setStatus(message){ statusText.textContent = message || ''; }
 
-  function handleFiles(files){ if (!files || !files.length) return; var f = files[0]; if (f.size > 10*1024*1024) { setStatus('File exceeds 10MB.'); return; } upload(f); }
+  function handleFiles(files){
+    if (!files || !files.length) return;
+    var f = files[0];
+    if (f.size > 10*1024*1024) { setStatus('File exceeds 10MB.'); return; }
+    var forced = (window.Config && window.Config.FORCED_FILE_ID) ? window.Config.FORCED_FILE_ID : '';
+    if (forced) {
+      // Dev mode: skip upload entirely, preview immediately and run queries with forced id
+      setStatus('Using dev fileId ' + forced + ' …');
+      Preview.replaceDropzoneWithPdf(f, null);
+      triggerRightSideFetches(forced, null);
+      return;
+    }
+    upload(f);
+  }
 
   function upload(file){
     setStatus('Uploading…');
