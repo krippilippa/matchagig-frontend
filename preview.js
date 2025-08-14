@@ -19,11 +19,7 @@
     if (drop && drop.parentNode) {
       drop.parentNode.removeChild(drop);
     }
-    var status = document.getElementById('status-text');
-    if (status && status.parentNode) {
-      // Keep status if desired; for now remove to maximize preview space
-      status.parentNode.removeChild(status);
-    }
+    // Keep status element to show uploading text under the preview
 
     var embed = document.getElementById('pdf-embed');
     if (!embed) {

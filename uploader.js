@@ -28,6 +28,8 @@
 
   function upload(file){
     setStatus('Uploading…');
+    // Replace dropzone immediately for better UX (optimistic preview)
+    Preview.replaceDropzoneWithPdf(file, null);
     if (output) output.value = '';
     Api.uploadFile(file)
       .then(function(data){
@@ -36,8 +38,8 @@
         State.upsertCandidate({ id: data.fileId || '', name: data.name || file.name || 'Unnamed', email: data.email || '', blurb: data.blurb || '', text: data.text || '', pdfUrl: data.pdfUrl || '' });
         State.setLastFileId(data.fileId || '');
         Sidebar.renderAllResumesList();
-        // Replace dropzone with PDF preview on the left
-        Preview.replaceDropzoneWithPdf(file, data);
+        // Ensure preview points at the server version if available
+        Preview.showPdf(file, data);
         // Kick off summary and red flags using fileId
         triggerRightSideFetches(data.fileId, data.text);
       })
