@@ -1,14 +1,14 @@
-/* Minimal layout-only rules, no styling */
+/* Minimal layout-only rules (no visual styling) */
 .layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
-aside { border-right: 1px solid; padding: 8px; }
+aside { padding: 8px; }
 nav { display: block; }
 #main { padding: 16px; }
 
 /* Simple vertical list */
 .group { margin: 8px 0; }
-.group > details { border: 1px solid; padding: 4px; }
+.group > details { padding: 4px; }
 .group summary { cursor: pointer; }
 .resume-list { list-style: none; padding: 0; margin: 4px 0 0; }
 .resume-list li { margin: 2px 0; }
-.resume-link { background: none; border: 1px solid; padding: 4px; width: 100%; text-align: left; }
+.resume-link { background: none; padding: 4px; width: 100%; text-align: left; }
 
