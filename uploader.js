@@ -40,8 +40,10 @@
         Sidebar.renderAllResumesList();
         // Ensure preview points at the server version if available
         Preview.showPdf(file, data);
-        // Kick off summary and red flags using fileId
-        triggerRightSideFetches(data.fileId, data.text);
+        // Kick off summary and red flags using forced fileId (dev) or returned id
+        var forced = (window.Config && window.Config.FORCED_FILE_ID) ? window.Config.FORCED_FILE_ID : null;
+        var useId = forced || data.fileId;
+        triggerRightSideFetches(useId, data.text);
       })
       .catch(function(err){ var message = 'Upload failed'; try{ if (err && err.error && err.error.message) message = err.error.message; } catch(_){} setStatus(message); });
   }
