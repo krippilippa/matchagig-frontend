@@ -1,4 +1,5 @@
 /* Minimal layout-only rules (no visual styling) */
+#sidebar { width: 240px; }
 .layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
 aside { padding: 8px; }
 nav { display: block; }
