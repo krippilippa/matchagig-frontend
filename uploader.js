@@ -163,8 +163,21 @@
       var exp = [years, rolesCount].filter(Boolean).join(', ');
       if (exp) item('Experience', exp);
 
-      if (Array.isArray(resp.companies) && resp.companies.length) item('Companies', resp.companies.join(', '));
-      if (Array.isArray(resp.roles) && resp.roles.length) item('Roles', resp.roles.join(', '));
+      if (Array.isArray(resp.companies) && resp.companies.length) {
+        var cWrap = document.createElement('div'); cWrap.className = 'info-item';
+        var ck = document.createElement('div'); ck.className = 'info-key'; ck.textContent = 'Companies';
+        var cl = document.createElement('div'); cl.className = 'list-plain';
+        resp.companies.forEach(function(c){ var d=document.createElement('div'); d.textContent = c; cl.appendChild(d); });
+        cWrap.appendChild(ck); cWrap.appendChild(cl); container.appendChild(cWrap);
+      }
+
+      if (Array.isArray(resp.roles) && resp.roles.length) {
+        var rWrap = document.createElement('div'); rWrap.className = 'info-item';
+        var rk = document.createElement('div'); rk.className = 'info-key'; rk.textContent = 'Roles';
+        var rl = document.createElement('div'); rl.className = 'list-plain';
+        resp.roles.forEach(function(r){ var d=document.createElement('div'); d.textContent = r; rl.appendChild(d); });
+        rWrap.appendChild(rk); rWrap.appendChild(rl); container.appendChild(rWrap);
+      }
 
       if (Array.isArray(resp.education) && resp.education.length) {
         resp.education.forEach(function(e){
@@ -173,8 +186,20 @@
         });
       }
 
-      if (Array.isArray(resp.hardSkills) && resp.hardSkills.length) item('Hard skills', resp.hardSkills.join(', '));
-      if (Array.isArray(resp.softSkills) && resp.softSkills.length) item('Soft skills', resp.softSkills.join(', '));
+      if (Array.isArray(resp.hardSkills) && resp.hardSkills.length) {
+        var hsWrap = document.createElement('div'); hsWrap.className = 'info-item';
+        var hk = document.createElement('div'); hk.className = 'info-key'; hk.textContent = 'Hard skills';
+        var ht = document.createElement('div'); ht.className = 'tags';
+        resp.hardSkills.forEach(function(s){ var t=document.createElement('span'); t.className='tag'; t.textContent=s; ht.appendChild(t); });
+        hsWrap.appendChild(hk); hsWrap.appendChild(ht); container.appendChild(hsWrap);
+      }
+      if (Array.isArray(resp.softSkills) && resp.softSkills.length) {
+        var ssWrap = document.createElement('div'); ssWrap.className = 'info-item';
+        var sk = document.createElement('div'); sk.className = 'info-key'; sk.textContent = 'Soft skills';
+        var st = document.createElement('div'); st.className = 'tags';
+        resp.softSkills.forEach(function(s){ var t=document.createElement('span'); t.className='tag'; t.textContent=s; st.appendChild(t); });
+        ssWrap.appendChild(sk); ssWrap.appendChild(st); container.appendChild(ssWrap);
+      }
     } catch (_) {}
   }
 

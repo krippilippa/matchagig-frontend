@@ -29,6 +29,9 @@
 .info-item { border: 1px solid; padding: 6px; }
 .info-key { font-weight: bold; margin-bottom: 4px; }
 .list { display: grid; gap: 6px; }
+.list-plain { display: grid; gap: 4px; }
+.tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag { border: 1px solid; padding: 2px 4px; }
 .flag { border: 1px solid; padding: 6px; }
 .flag-title { font-weight: bold; margin-bottom: 4px; }
 
