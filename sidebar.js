@@ -12,11 +12,11 @@
 
   function wire() {
     var allBtn = document.getElementById('btn-all-resumes');
-    if (allBtn) allBtn.addEventListener('click', function(){ renderAllResumesList(); Main.setView('all'); });
+    if (allBtn) allBtn.addEventListener('click', function(){ renderAllResumesList(); });
     var container = document.getElementById('sidebar-content');
     if (!container) return;
     container.addEventListener('click', function(e){
-      var t = e.target; if (t && t.classList.contains('resume-link')) { var id = t.getAttribute('data-resume-id'); Main.setSelectedResume(id); }
+      var t = e.target; if (t && t.classList.contains('resume-link')) { /* placeholder for future selection */ }
     });
   }
 

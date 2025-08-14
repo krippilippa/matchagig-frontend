@@ -28,11 +28,11 @@
 
   function upload(file){
     setStatus('Uploading…');
-    output.value = '';
+    if (output) output.value = '';
     Api.uploadFile(file)
       .then(function(data){
         setStatus('Uploaded successfully. fileId: ' + data.fileId + (file && file.name ? ' (' + file.name + ')' : ''));
-        output.value = data && data.text ? data.text : '';
+        if (output) output.value = data && data.text ? data.text : '';
         State.upsertCandidate({ id: data.fileId || '', name: data.name || file.name || 'Unnamed', email: data.email || '', blurb: data.blurb || '', text: data.text || '', pdfUrl: data.pdfUrl || '' });
         State.setLastFileId(data.fileId || '');
         Sidebar.renderAllResumesList();
