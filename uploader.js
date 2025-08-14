@@ -36,10 +36,29 @@
         State.upsertCandidate({ id: data.fileId || '', name: data.name || file.name || 'Unnamed', email: data.email || '', blurb: data.blurb || '', text: data.text || '', pdfUrl: data.pdfUrl || '' });
         State.setLastFileId(data.fileId || '');
         Sidebar.renderAllResumesList();
-        // In the current layout we use the left drop zone instead of preview embed
-        // If we later want to show PDF, call: Preview.showPdf(file, data);
+        // Replace dropzone with PDF preview on the left
+        Preview.replaceDropzoneWithPdf(file, data);
+        // Kick off summary and red flags using fileId
+        triggerRightSideFetches(data.fileId, data.text);
       })
       .catch(function(err){ var message = 'Upload failed'; try{ if (err && err.error && err.error.message) message = err.error.message; } catch(_){} setStatus(message); });
+  }
+
+  function triggerRightSideFetches(fileId, fallbackText){
+    var jobTitleEl = document.getElementById('job-title');
+    var jobTitleVal = jobTitleEl ? jobTitleEl.value : undefined;
+    var summaryBox = document.getElementById('all-summary');
+    var redflagsBox = document.getElementById('all-redflags');
+    if (summaryBox) summaryBox.value = '';
+    if (redflagsBox) redflagsBox.value = '';
+
+    if (fileId) {
+      Api.summarize({ fileId: fileId, jobTitle: jobTitleVal }).then(function(r){ if (summaryBox) summaryBox.value = r && r.text ? r.text : ''; });
+      Api.redflags({ fileId: fileId }).then(function(r){ if (redflagsBox) redflagsBox.value = r && r.text ? r.text : ''; });
+    } else if (fallbackText) {
+      Api.summarize({ text: fallbackText, jobTitle: jobTitleVal }).then(function(r){ if (summaryBox) summaryBox.value = r && r.text ? r.text : ''; });
+      Api.redflags({ text: fallbackText }).then(function(r){ if (redflagsBox) redflagsBox.value = r && r.text ? r.text : ''; });
+    }
   }
 
   window.Uploader = { init: initUploader };
