@@ -17,5 +17,6 @@
 /* Minimal split for All resumes view */
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 #pdf-embed { width: 100%; height: 80vh; }
+.right-col { display: grid; grid-template-rows: auto auto auto; gap: 8px; }
 
 
