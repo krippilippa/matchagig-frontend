@@ -78,7 +78,7 @@
         return res.json();
       })
       .then(function (data) {
-        // Expected (future): { fileId, candidateName, email, blurb, text, pdfUrl? }
+        // Expected: { fileId, name, email, blurb, text }
         setStatus('Uploaded successfully. fileId: ' + data.fileId + (file && file.name ? ' (' + file.name + ')' : ''));
         output.value = data && data.text ? data.text : '';
         // Store fileId and basic candidate info for All resumes view
@@ -86,7 +86,7 @@
           var stored = JSON.parse(localStorage.getItem('candidates') || '[]');
           var candidate = {
             id: data.fileId || '',
-            name: data.candidateName || file.name || 'Unnamed',
+            name: data.name || file.name || 'Unnamed',
             email: data.email || '',
             blurb: data.blurb || '',
             text: data.text || '',
