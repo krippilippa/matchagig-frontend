@@ -16,20 +16,7 @@
         <p class="subtitle">Upload your résumé (PDF/DOCX/TXT). We’ll clean and linearize it.</p>
       </header>
 
-      <section id="section-uploader" class="uploader">
-        <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Drop file here or click to select">
-          <div class="drop-zone__content">
-            <strong>Drag & drop</strong> your résumé here
-            <span class="muted">or click to choose a file</span>
-            <span class="hint">Max 10 MB. Accepted: .pdf, .docx, .txt</span>
-          </div>
-          <input id="file-input" type="file" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,text/plain,.txt" hidden />
-        </div>
-        <div class="actions">
-          <button id="choose-file-btn" type="button" class="btn">Choose file</button>
-          <span id="status-text" class="status" aria-live="polite"></span>
-        </div>
-      </section>
+      
 
       <section id="section-output" class="output">
         <label for="output-text" class="label">Cleaned résumé text</label>
@@ -61,7 +48,16 @@
       <section id="section-allresumes" hidden>
         <div class="split">
           <div class="left-col">
-            <embed id="pdf-embed" type="application/pdf" width="100%" height="100%" />
+            <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Drop file here or click to select">
+              <div class="drop-zone__content">
+                <strong>Drag & drop</strong> your résumé here
+                <span class="muted">or click to choose a file</span>
+                <span class="hint">Max 10 MB. Accepted: .pdf, .docx, .txt</span>
+                <button id="choose-file-btn" type="button" class="btn">Choose file</button>
+              </div>
+              <input id="file-input" type="file" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,text/plain,.txt" hidden />
+            </div>
+            <span id="status-text" class="status" aria-live="polite"></span>
           </div>
           <div id="allresumes-right" class="right-col">
             <div>

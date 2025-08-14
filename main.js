@@ -3,7 +3,6 @@
 
   function setView(view){
     var sectionHeader = document.getElementById('section-header');
-    var sectionUploader = document.getElementById('section-uploader');
     var sectionOutput = document.getElementById('section-output');
     var sectionSummary = document.getElementById('section-summary');
     var sectionRedflags = document.getElementById('section-redflags');
@@ -11,17 +10,15 @@
     if (view === 'all') {
       sectionHeader.hidden = true;
       sectionOutput.hidden = true;
-      sectionSummary.hidden = true;
-      sectionRedflags.hidden = true;
+      sectionSummary.hidden = false; // show right-side placeholders
+      sectionRedflags.hidden = false; // show right-side placeholders
       sectionAllResumes.hidden = false;
-      sectionUploader.hidden = false;
     } else {
       sectionHeader.hidden = false;
       sectionOutput.hidden = false;
       sectionSummary.hidden = false;
       sectionRedflags.hidden = false;
       sectionAllResumes.hidden = true;
-      sectionUploader.hidden = false;
     }
   }
 

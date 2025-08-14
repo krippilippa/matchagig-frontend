@@ -36,8 +36,8 @@
         State.upsertCandidate({ id: data.fileId || '', name: data.name || file.name || 'Unnamed', email: data.email || '', blurb: data.blurb || '', text: data.text || '', pdfUrl: data.pdfUrl || '' });
         State.setLastFileId(data.fileId || '');
         Sidebar.renderAllResumesList();
-        Sidebar.clearRightPanel();
-        Preview.showPdf(file, data);
+        // In the current layout we use the left drop zone instead of preview embed
+        // If we later want to show PDF, call: Preview.showPdf(file, data);
       })
       .catch(function(err){ var message = 'Upload failed'; try{ if (err && err.error && err.error.message) message = err.error.message; } catch(_){} setStatus(message); });
   }
