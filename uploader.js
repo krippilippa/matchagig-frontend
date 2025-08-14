@@ -111,29 +111,29 @@
         }
 
         if (Array.isArray(resp.companies) && resp.companies.length) {
-          lines.push('Companies: ' + resp.companies.slice(0, 5).join(', '));
+          lines.push('Companies: ' + resp.companies.join(', '));
         }
 
         if (Array.isArray(resp.roles) && resp.roles.length) {
-          lines.push('Roles: ' + resp.roles.slice(0, 5).join(', '));
+          lines.push('Roles: ' + resp.roles.join(', '));
         }
 
         if (Array.isArray(resp.education) && resp.education.length) {
-          var e = resp.education[0] || {};
-          var edu = [e.degree, e.field, e.institution, e.year].filter(Boolean).join(', ');
-          if (edu) lines.push('Education: ' + edu);
+          resp.education.forEach(function(e){
+            var edu = [e.degree, e.field, e.institution, e.year].filter(Boolean).join(', ');
+            if (edu) lines.push('Education: ' + edu);
+          });
         }
 
         if (Array.isArray(resp.hardSkills) && resp.hardSkills.length) {
-          lines.push('Hard skills: ' + resp.hardSkills.slice(0, 8).join(', '));
+          lines.push('Hard skills: ' + resp.hardSkills.join(', '));
         }
 
-        if (!lines.length && Array.isArray(resp.softSkills) && resp.softSkills.length) {
-          lines.push('Soft skills: ' + resp.softSkills.slice(0, 8).join(', '));
+        if (Array.isArray(resp.softSkills) && resp.softSkills.length) {
+          lines.push('Soft skills: ' + resp.softSkills.join(', '));
         }
 
-        // Ensure roughly 5 lines; trim if overly long
-        return lines.slice(0, 5).join('\n');
+        return lines.join('\n');
       }
     } catch (_) {}
     return '';
