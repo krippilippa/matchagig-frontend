@@ -142,11 +142,11 @@
 
   function renderSummary(container, resp){
     if (!container) return;
-    var text = formatSummaryResponse(resp);
-    if (text) {
-      // If legacy text, show as a single paragraph
+    // Legacy text response support
+    if (resp && typeof resp.text === 'string' && resp.text.trim()) {
       var p = document.createElement('div');
-      p.textContent = text;
+      p.className = 'pre';
+      p.textContent = resp.text;
       container.appendChild(p);
       return;
     }
