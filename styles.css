@@ -22,4 +22,13 @@
 .drop-zone { border: 1px dashed; padding: 16px; min-height: 70vh; display: grid; place-items: center; text-align: center; }
 .right-col { display: grid; grid-template-rows: auto auto auto; gap: 8px; }
 
+/* Simple boxes for readability (still minimal styles) */
+.section { border: 1px solid; padding: 8px; }
+.section-title { font-weight: bold; margin-bottom: 6px; }
+.info { display: grid; gap: 4px; }
+.info-row { display: grid; grid-template-columns: 140px 1fr; gap: 8px; }
+.info-key { font-weight: bold; }
+.list { display: grid; gap: 6px; }
+.flag { border: 1px solid; padding: 6px; }
+
 

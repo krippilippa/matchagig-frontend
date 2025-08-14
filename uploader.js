@@ -64,17 +64,18 @@
   function triggerRightSideFetches(fileId, fallbackText){
     var jobTitleEl = document.getElementById('job-title');
     var jobTitleVal = jobTitleEl ? jobTitleEl.value : undefined;
-    var summaryBox = document.getElementById('all-summary');
-    var redflagsBox = document.getElementById('all-redflags');
-    if (summaryBox) summaryBox.value = '';
-    if (redflagsBox) redflagsBox.value = '';
+    // Structured containers
+    var infoContainer = document.getElementById('general-info');
+    var flagsContainer = document.getElementById('redflags-list');
+    if (infoContainer) infoContainer.innerHTML = '';
+    if (flagsContainer) flagsContainer.innerHTML = '';
 
     if (fileId) {
-      Api.summarize({ fileId: fileId, jobTitle: jobTitleVal }).then(function(r){ if (summaryBox) summaryBox.value = formatSummaryResponse(r); });
-      Api.redflags({ fileId: fileId }).then(function(r){ if (redflagsBox) redflagsBox.value = formatRedflagsResponse(r); });
+      Api.summarize({ fileId: fileId, jobTitle: jobTitleVal }).then(function(r){ renderSummary(infoContainer, r); });
+      Api.redflags({ fileId: fileId }).then(function(r){ renderRedflags(flagsContainer, r); });
     } else if (fallbackText) {
-      Api.summarize({ text: fallbackText, jobTitle: jobTitleVal }).then(function(r){ if (summaryBox) summaryBox.value = formatSummaryResponse(r); });
-      Api.redflags({ text: fallbackText }).then(function(r){ if (redflagsBox) redflagsBox.value = formatRedflagsResponse(r); });
+      Api.summarize({ text: fallbackText, jobTitle: jobTitleVal }).then(function(r){ renderSummary(infoContainer, r); });
+      Api.redflags({ text: fallbackText }).then(function(r){ renderRedflags(flagsContainer, r); });
     }
   }
 
@@ -137,6 +138,65 @@
       }
     } catch (_) {}
     return '';
+  }
+
+  function renderSummary(container, resp){
+    if (!container) return;
+    var text = formatSummaryResponse(resp);
+    if (text) {
+      // If legacy text, show as a single paragraph
+      var p = document.createElement('div');
+      p.textContent = text;
+      container.appendChild(p);
+      return;
+    }
+    try {
+      if (!resp || typeof resp !== 'object') return;
+      function row(key, value) {
+        var r = document.createElement('div'); r.className = 'info-row';
+        var k = document.createElement('div'); k.className = 'info-key'; k.textContent = key;
+        var v = document.createElement('div'); v.textContent = value;
+        r.appendChild(k); r.appendChild(v); container.appendChild(r);
+      }
+      var years = typeof resp.yearsExperience === 'number' ? resp.yearsExperience + ' years' : '';
+      var rolesCount = typeof resp.jobsCount === 'number' ? resp.jobsCount + ' roles' : '';
+      var exp = [years, rolesCount].filter(Boolean).join(', ');
+      if (exp) row('Experience', exp);
+
+      if (Array.isArray(resp.companies) && resp.companies.length) row('Companies', resp.companies.join(', '));
+      if (Array.isArray(resp.roles) && resp.roles.length) row('Roles', resp.roles.join(', '));
+
+      if (Array.isArray(resp.education) && resp.education.length) {
+        resp.education.forEach(function(e){
+          var edu = [e.degree, e.field, e.institution, e.year].filter(Boolean).join(', ');
+          if (edu) row('Education', edu);
+        });
+      }
+
+      if (Array.isArray(resp.hardSkills) && resp.hardSkills.length) row('Hard skills', resp.hardSkills.join(', '));
+      if (Array.isArray(resp.softSkills) && resp.softSkills.length) row('Soft skills', resp.softSkills.join(', '));
+    } catch (_) {}
+  }
+
+  function renderRedflags(container, resp){
+    if (!container) return;
+    try {
+      if (resp && Array.isArray(resp.items)) {
+        if (resp.items.length === 0) {
+          var ok = document.createElement('div'); ok.className = 'flag'; ok.textContent = 'No major red flags'; container.appendChild(ok); return;
+        }
+        resp.items.forEach(function(it){
+          var box = document.createElement('div'); box.className = 'flag';
+          var title = it && it.title ? it.title : '';
+          var desc = it && it.description ? it.description : '';
+          box.textContent = title && desc ? (title + ': ' + desc) : (title || desc || '');
+          container.appendChild(box);
+        });
+        return;
+      }
+      var text = formatRedflagsResponse(resp);
+      if (text) { var b = document.createElement('div'); b.className = 'flag'; b.textContent = text; container.appendChild(b); }
+    } catch (_) {}
   }
 
   window.Uploader = { init: initUploader };
