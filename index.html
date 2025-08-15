@@ -26,15 +26,41 @@
               <input id="file-input" type="file" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,text/plain,.txt" hidden />
             </div>
             <span id="status-text" class="status" aria-live="polite"></span>
+            
+            <!-- Upload Results Section -->
+            <div id="upload-results" class="upload-results" style="display: none;">
+              <h3>Upload Results</h3>
+              <div id="upload-data" class="upload-data"></div>
+            </div>
           </div>
           <div id="allresumes-right" class="right-col">
+            <!-- Manual Overview Section -->
             <div class="section">
-              <div class="section-title">General info</div>
-              <div id="general-info" class="info"></div>
+              <div class="section-title">Manual Overview Generation</div>
+              <div class="manual-overview">
+                <div class="input-group">
+                  <label for="resume-id-input">Resume ID:</label>
+                  <input type="text" id="resume-id-input" placeholder="Enter resume ID (e.g., 77b120d8-00eb-42b0-a5c7-32fd918048a2)" />
+                  <button id="generate-overview-btn" type="button" class="btn btn-primary">Generate Overview</button>
+                </div>
+                <div class="known-ids">
+                  <label>Known Resume IDs:</label>
+                  <div class="id-list">
+                    <button type="button" class="btn btn-sm btn-outline" onclick="setResumeId('77b120d8-00eb-42b0-a5c7-32fd918048a2')">77b120d8-00eb-42b0-a5c7-32fd918048a2</button>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="setResumeId('29da569d-7696-4fb2-9838-03c0697175b5')">29da569d-7696-4fb2-9838-03c0697175b5</button>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="setResumeId('ab91eea4-cf3c-4650-ab59-e3cf8f220006')">ab91eea4-cf3c-4650-ab59-e3cf8f220006</button>
+                  </div>
+                </div>
+                <div class="input-group">
+                  <label for="job-description-input">Job Description (Optional):</label>
+                  <textarea id="job-description-input" placeholder="Paste job description here for context..." rows="3"></textarea>
+                </div>
+              </div>
             </div>
+            
             <div class="section">
-              <div class="section-title">Red flags</div>
-              <div id="redflags-list" class="list"></div>
+              <div class="section-title">Resume Overview</div>
+              <div id="resume-overview" class="overview"></div>
             </div>
             <div>
               <button id="btn-add-job" type="button">Add job description</button>

@@ -16,14 +16,14 @@
     localStorage.setItem('candidates', JSON.stringify(list));
   }
 
-  function setLastFileId(id) { try { localStorage.setItem('lastFileId', id || ''); } catch (_) {} }
-  function getLastFileId() { try { return localStorage.getItem('lastFileId') || ''; } catch (_) { return ''; } }
+  function setLastResumeId(id) { try { localStorage.setItem('lastResumeId', id || ''); } catch (_) {} }
+  function getLastResumeId() { try { return localStorage.getItem('lastResumeId') || ''; } catch (_) { return ''; } }
 
   window.State = {
     getCandidates: getCandidates,
     upsertCandidate: upsertCandidate,
-    setLastFileId: setLastFileId,
-    getLastFileId: getLastFileId,
+    setLastResumeId: setLastResumeId,
+    getLastResumeId: getLastResumeId,
   };
 })();
 
