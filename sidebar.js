@@ -29,7 +29,8 @@
     candidates.forEach(function(c){
       var li = document.createElement('li');
       var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'resume-link';
-      btn.textContent = c.name || 'Unnamed'; btn.title = c.blurb || '';
+      btn.textContent = c.name || 'Unnamed'; 
+      btn.title = c.email || c.phone || 'Resume'; // Use email or phone as tooltip instead of blurb
       btn.setAttribute('data-resume-id', c.id);
       li.appendChild(btn); list.appendChild(li);
     });

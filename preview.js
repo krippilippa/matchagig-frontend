@@ -8,7 +8,7 @@
       try { embed.src = URL.createObjectURL(file); } catch (_) {}
       return;
     }
-    if (serverData && serverData.pdfUrl) embed.src = serverData.pdfUrl;
+    // Note: We no longer get pdfUrl from the API, so we only show local file previews
   }
 
   function replaceDropzoneWithPdf(file, serverData) {

@@ -1,14 +1,13 @@
 (function () {
   'use strict';
 
-  var dropZone, fileInput, chooseBtn, statusText, output;
+  var dropZone, fileInput, chooseBtn, statusText;
 
   function initUploader() {
     dropZone = document.getElementById('drop-zone');
     fileInput = document.getElementById('file-input');
     chooseBtn = document.getElementById('choose-file-btn');
     statusText = document.getElementById('status-text');
-    output = document.getElementById('output-text');
 
     ['dragenter','dragover'].forEach(function(evt){
       dropZone.addEventListener(evt, function(e){ e.preventDefault(); e.stopPropagation(); dropZone.classList.add('dragover'); });
@@ -60,16 +59,24 @@
     setStatus('Uploading…');
     // Replace dropzone immediately for better UX (optimistic preview)
     Preview.replaceDropzoneWithPdf(file, null);
-    if (output) output.value = '';
     Api.uploadFile(file)
       .then(function(data){
         setStatus('Uploaded successfully. Resume ID: ' + data.resumeId + (file && file.name ? ' (' + file.name + ')' : ''));
-        if (output) output.value = data && data.text ? data.text : '';
-        State.upsertCandidate({ id: data.resumeId || '', name: data.name || file.name || 'Unnamed', email: data.email || '', blurb: data.blurb || '', text: data.text || '', pdfUrl: data.pdfUrl || '' });
+        
+        // Store candidate data with only the fields we actually get from the API
+        State.upsertCandidate({ 
+          id: data.resumeId || '', 
+          name: data.name || file.name || 'Unnamed', 
+          email: data.email || '', 
+          phone: data.phone || '',
+          length: data.length || 0
+        });
+        
         State.setLastResumeId(data.resumeId || '');
         Sidebar.renderAllResumesList();
-        // Ensure preview points at the server version if available
-        Preview.showPdf(file, data);
+        
+        // Show the file preview (local file, not server URL)
+        Preview.showPdf(file, null);
         
         // Display upload results
         displayUploadResults(data);
@@ -148,7 +155,7 @@
       // Add retry button at the top
       var retryButton = document.createElement('button');
       retryButton.type = 'button';
-      retryButton.className = 'btn btn-retry';
+      retryButton.className = 'btn';
       retryButton.textContent = 'Refresh Overview';
       retryButton.onclick = function() {
         var currentResumeId = State.getLastResumeId();
@@ -157,6 +164,19 @@
         }
       };
       container.appendChild(retryButton);
+      
+      // Add button to fetch full resume text
+      var textButton = document.createElement('button');
+      textButton.type = 'button';
+      textButton.className = 'btn';
+      textButton.textContent = 'Show Full Text';
+      textButton.onclick = function() {
+        var currentResumeId = State.getLastResumeId();
+        if (currentResumeId) {
+          fetchAndShowResumeText(currentResumeId);
+        }
+      };
+      container.appendChild(textButton);
       
       // Basic info section
       if (data.name || data.email || data.phone) {
@@ -200,7 +220,7 @@
           
           if (overview.title) {
             var titleEl = document.createElement('div');
-            titleEl.className = 'info-item highlight';
+            titleEl.className = 'info-item';
             titleEl.innerHTML = '<span class="label">Title:</span> <span class="value">' + overview.title + '</span>';
             positionSection.appendChild(titleEl);
           }
@@ -229,8 +249,8 @@
           experienceSection.innerHTML = '<h3>Experience</h3>';
           
           var yoeEl = document.createElement('div');
-          yoeEl.className = 'info-item highlight';
-          yoeEl.innerHTML = '<span class="label">Years of Experience:</span> <span class="value">' + overview.yoe + ' years</span>';
+          yoeEl.className = 'info-item';
+          yoeEl.innerHTML = '<span class="label">Years:</span> <span class="value">' + overview.yoe + ' years</span>';
           experienceSection.appendChild(yoeEl);
           
           if (overview.yoeBasis) {
@@ -252,7 +272,7 @@
           var eduEl = document.createElement('div');
           eduEl.className = 'info-item';
           var eduParts = [overview.education.level, overview.education.degreeName, overview.education.field, overview.education.institution, overview.education.year].filter(Boolean);
-          eduEl.innerHTML = '<span class="label">Highest Degree:</span> <span class="value">' + eduParts.join(', ') + '</span>';
+          eduEl.innerHTML = '<span class="label">Degree:</span> <span class="value">' + eduParts.join(', ') + '</span>';
           educationSection.appendChild(eduEl);
           
           container.appendChild(educationSection);
@@ -274,16 +294,39 @@
         
         // Top Achievements
         if (overview.topAchievements && overview.topAchievements.length) {
+          console.log('Achievements data structure:', overview.topAchievements);
+          
           var achievementsSection = document.createElement('div');
           achievementsSection.className = 'overview-section';
           achievementsSection.innerHTML = '<h3>Key Achievements</h3>';
           
-          var achievementsList = document.createElement('div');
+          var achievementsList = document.createElement('ul');
           achievementsList.className = 'achievements-list';
-          overview.topAchievements.forEach(function(achievement) {
-            var achievementEl = document.createElement('div');
+          overview.topAchievements.forEach(function(achievement, index) {
+            var achievementEl = document.createElement('li');
             achievementEl.className = 'achievement-item';
-            achievementEl.textContent = achievement;
+            
+            // Handle different achievement data structures
+            var achievementText = '';
+            if (typeof achievement === 'string') {
+              achievementText = achievement;
+            } else if (achievement && typeof achievement === 'object') {
+              // If it's an object, try to extract the text
+              if (achievement.text) {
+                achievementText = achievement.text;
+              } else if (achievement.description) {
+                achievementText = achievement.description;
+              } else if (achievement.achievement) {
+                achievementText = achievement.achievement;
+              } else {
+                // Fallback: show the object structure for debugging
+                achievementText = JSON.stringify(achievement, null, 2);
+              }
+            } else {
+              achievementText = String(achievement);
+            }
+            
+            achievementEl.textContent = achievementText;
             achievementsList.appendChild(achievementEl);
           });
           
@@ -310,12 +353,12 @@
       // Metadata
       if (data.metadata) {
         var metadataSection = document.createElement('div');
-        metadataSection.className = 'overview-section metadata';
+        metadataSection.className = 'overview-section';
         metadataSection.innerHTML = '<h3>Processing Info</h3>';
         
         if (data.metadata.timestamp) {
           var timestampEl = document.createElement('div');
-          timestampEl.className = 'info-item small';
+          timestampEl.className = 'info-item';
           var date = new Date(data.metadata.timestamp);
           timestampEl.innerHTML = '<span class="label">Processed:</span> <span class="value">' + date.toLocaleString() + '</span>';
           metadataSection.appendChild(timestampEl);
@@ -323,7 +366,7 @@
         
         if (data.metadata.canonicalTextLength) {
           var lengthEl = document.createElement('div');
-          lengthEl.className = 'info-item small';
+          lengthEl.className = 'info-item';
           lengthEl.innerHTML = '<span class="label">Text Length:</span> <span class="value">' + data.metadata.canonicalTextLength + ' characters</span>';
           metadataSection.appendChild(lengthEl);
         }
@@ -352,7 +395,7 @@
     // Clear previous data
     uploadData.innerHTML = '';
     
-    // Create formatted display of upload response
+    // Create formatted display of upload response - only show fields that exist
     var resultsHtml = '<div class="upload-info">';
     
     if (data.resumeId) {
@@ -375,7 +418,7 @@
       resultsHtml += '<div class="info-item"><span class="label">Text Length:</span> <span class="value">' + data.length + ' characters</span></div>';
     }
     
-    // Add any other fields from the response
+    // Add any other fields that might exist in the future
     Object.keys(data).forEach(function(key) {
       if (!['resumeId', 'name', 'email', 'phone', 'length'].includes(key) && data[key]) {
         resultsHtml += '<div class="info-item"><span class="label">' + key + ':</span> <span class="value">' + data[key] + '</span></div>';
@@ -402,6 +445,42 @@
       triggerOverviewFetch(resumeId);
     }
   };
+
+  function fetchAndShowResumeText(resumeId) {
+    setStatus('Fetching full resume text...');
+    Api.getResumeText(resumeId)
+      .then(function(data) {
+        setStatus('Full text loaded');
+        
+        // Create a modal or expand the overview to show the full text
+        var overviewContainer = document.getElementById('resume-overview');
+        if (overviewContainer) {
+          var textSection = document.createElement('div');
+          textSection.className = 'overview-section';
+          textSection.innerHTML = '<h3>Full Resume Text</h3>';
+          
+          var textContent = document.createElement('div');
+          textContent.className = 'full-text';
+          textContent.style.whiteSpace = 'pre-wrap';
+          textContent.style.fontFamily = 'monospace';
+          textContent.style.fontSize = '12px';
+          textContent.style.maxHeight = '400px';
+          textContent.style.overflow = 'auto';
+          textContent.style.border = '1px solid #ccc';
+          textContent.style.padding = '12px';
+          textContent.style.backgroundColor = '#f9f9f9';
+          textContent.textContent = data.canonicalText || 'No text available';
+          
+          textSection.appendChild(textContent);
+          overviewContainer.appendChild(textSection);
+        }
+      })
+      .catch(function(err) {
+        var message = 'Failed to fetch full text';
+        try { if (err && err.error && err.error.message) message = err.error.message; } catch(_) {}
+        setStatus(message);
+      });
+  }
 
   window.Uploader = { 
     init: initUploader,

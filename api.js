@@ -18,6 +18,11 @@
     }).then(function (res) { if (!res.ok) return res.json().then(function (j){ throw j; }); return res.json(); });
   }
 
+  function getResumeText(resumeId) {
+    return fetch(API_BASE + '/v1/resume/' + resumeId, { method: 'GET' })
+      .then(function (res) { if (!res.ok) return res.json().then(function (j){ throw j; }); return res.json(); });
+  }
+
   function getAvailableResumeIds() {
     return fetch(API_BASE + '/v1/resumes', { method: 'GET' })
       .then(function (res) { 
@@ -35,7 +40,7 @@
       });
   }
 
-  window.Api = { uploadFile: uploadFile, getOverview: getOverview, getAvailableResumeIds: getAvailableResumeIds };
+  window.Api = { uploadFile: uploadFile, getOverview: getOverview, getResumeText: getResumeText, getAvailableResumeIds: getAvailableResumeIds };
 })();
 
 
