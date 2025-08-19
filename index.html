@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MatchaGig — Resume Matcher</title>
+    <title>MatchaGig — Resume Upload Test</title>
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./sidebar.css" />
   </head>
@@ -27,7 +27,7 @@
             <span id="status-text" class="status" aria-live="polite"></span>
             
             <div id="upload-results" class="upload-results" style="display: none;">
-              <h3>Upload Results</h3>
+              <h3>Upload Response</h3>
               <div id="upload-data" class="upload-data"></div>
             </div>
           </div>
@@ -44,9 +44,9 @@
                 <div class="known-ids">
                   <label>Quick Test IDs:</label>
                   <div class="id-list">
-                    <button type="button" class="btn btn-sm btn-outline" onclick="setResumeId('77b120d8-00eb-42b0-a5c7-32fd918048a2')">77b120d8...</button>
-                    <button type="button" class="btn btn-sm btn-outline" onclick="setResumeId('29da569d-7696-4fb2-9838-03c0697175b5')">29da569d...</button>
-                    <button type="button" class="btn btn-sm btn-outline" onclick="setResumeId('ab91eea4-cf3c-4650-ab59-e3cf8f220006')">ab91eea4...</button>
+                    <button type="button" class="btn btn-sm btn-outline" data-resume-id="77b120d8-00eb-42b0-a5c7-32fd918048a2">77b120d8...</button>
+                    <button type="button" class="btn btn-sm btn-outline" data-resume-id="29da569d-7696-4fb2-9838-03c0697175b5">29da569d...</button>
+                    <button type="button" class="btn btn-sm btn-outline" data-resume-id="ab91eea4-cf3c-4650-ab59-e3cf8f220006">ab91eea4...</button>
                   </div>
                 </div>
               </div>

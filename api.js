@@ -7,7 +7,10 @@
     var formData = new FormData();
     formData.append('file', file);
     return fetch(API_BASE + '/v1/upload', { method: 'POST', body: formData })
-      .then(function (res) { if (!res.ok) return res.json().then(function (j){ throw j; }); return res.json(); });
+      .then(function (res) { 
+        if (!res.ok) return res.json().then(function (j){ throw j; }); 
+        return res.json(); 
+      });
   }
 
   function getOverview(resumeId) {
@@ -15,7 +18,10 @@
       method: 'POST', 
       headers: { 'Content-Type': 'application/json' }, 
       body: JSON.stringify({ resumeId: resumeId })
-    }).then(function (res) { if (!res.ok) return res.json().then(function (j){ throw j; }); return res.json(); });
+    }).then(function (res) { 
+      if (!res.ok) return res.json().then(function (j){ throw j; }); 
+      return res.json(); 
+    });
   }
 
   function getResumeText(resumeId) {
