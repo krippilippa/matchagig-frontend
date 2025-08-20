@@ -452,6 +452,13 @@ async function explainCandidate(rec) {
     resumeText: rec.canonicalText
   };
 
+  // Debug: log what we're sending
+  console.log('Sending to /v1/explain-llm:', {
+    jdHash: state.jdHash,
+    resumeTextLength: rec.canonicalText?.length || 0,
+    payload: payload
+  });
+
   const res = await fetch('http://localhost:8787/v1/explain-llm', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Accept': 'text/markdown' },
@@ -461,13 +468,22 @@ async function explainCandidate(rec) {
   if (!res.ok) {
     let errorMessage = `Explain failed: ${res.status}`;
     
+    // Try to get more details from the response
+    let responseText = '';
+    try {
+      responseText = await res.text();
+      console.error('Backend error response:', responseText);
+    } catch (e) {
+      console.error('Could not read error response:', e);
+    }
+    
     // Provide more helpful error messages based on status
     if (res.status === 400) {
-      errorMessage = '❌ Bad Request: Check that jdHash and resumeText are provided and valid';
+      errorMessage = `❌ Bad Request: ${responseText || 'Check that jdHash and resumeText are provided and valid'}`;
     } else if (res.status === 404) {
-      errorMessage = '❌ JD Hash not found: Please check that the hash is correct';
+      errorMessage = `❌ JD Hash not found: ${responseText || 'Please check that the hash is correct'}`;
     } else if (res.status === 500) {
-      errorMessage = '❌ Server Error: Please try again later';
+      errorMessage = `❌ Server Error: ${responseText || 'Please try again later'}`;
     }
     
     document.getElementById('explainMd').textContent = errorMessage;
