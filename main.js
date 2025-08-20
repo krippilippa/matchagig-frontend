@@ -42,37 +42,23 @@ function openDB() {
   });
 }
 
-async function putResume(record) {
-  try {
-    console.log('💾 putResume called with:', record.resumeId);
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, 'readwrite');
-      const store = tx.objectStore(STORE);
-      
-      const request = store.put(record);
-      request.onsuccess = () => {
-        console.log('✅ Successfully stored:', record.resumeId);
-        resolve();
-      };
-      request.onerror = () => {
-        console.error('❌ Failed to store:', record.resumeId, request.error);
-        reject(request.error);
-      };
-      
-      tx.oncomplete = () => {
-        console.log('✅ Transaction completed for:', record.resumeId);
-      };
-      tx.onerror = () => {
-        console.error('❌ Transaction failed for:', record.resumeId, tx.error);
-        reject(tx.error);
-      };
-    });
-  } catch (error) {
-    console.error('❌ putResume error:', error);
-    throw error;
-  }
-}
+            async function putResume(record) {
+              try {
+                const db = await openDB();
+                return new Promise((resolve, reject) => {
+                  const tx = db.transaction(STORE, 'readwrite');
+                  const store = tx.objectStore(STORE);
+
+                  const request = store.put(record);
+                  request.onsuccess = () => resolve();
+                  request.onerror = () => reject(request.error);
+                  tx.onerror = () => reject(tx.error);
+                });
+              } catch (error) {
+                console.error('❌ putResume error:', error);
+                throw error;
+              }
+            }
 
 async function getResume(resumeId) {
   const db = await openDB();
@@ -124,29 +110,19 @@ if (jdHashEl.value.trim()) {
 // Load stored candidates from IndexedDB on page load
 async function loadStoredCandidates() {
   try {
-    console.log('🔄 Loading stored candidates from IndexedDB...');
     const db = await openDB();
-    console.log('📊 Database opened:', db.name, 'version:', db.version);
     
     const tx = db.transaction(STORE, 'readonly');
     const store = tx.objectStore(STORE);
-    console.log('📊 Object store:', STORE, 'available:', store);
     
     // Use a Promise-based approach for getAll
     const allRecords = await new Promise((resolve, reject) => {
       const request = store.getAll();
-      request.onsuccess = () => {
-        console.log('📊 getAll request successful, result:', request.result);
-        resolve(request.result);
-      };
-      request.onerror = () => {
-        console.error('❌ getAll request failed:', request.error);
-        reject(request.error);
-      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
     });
     
-    console.log('📊 Found records in IndexedDB:', allRecords);
-    console.log('📊 Records type:', typeof allRecords, 'Length:', allRecords?.length);
+
     
     if (allRecords && allRecords.length > 0) {
               // Reconstruct the results array from stored data
@@ -155,7 +131,6 @@ async function loadStoredCandidates() {
           let objectUrl = '';
           if (record.file) {
             objectUrl = URL.createObjectURL(record.file);
-            console.log('🔄 Recreated objectUrl for:', record.meta.filename);
           }
           
           return {
@@ -170,37 +145,25 @@ async function loadStoredCandidates() {
         });
       
       state.candidates = results;
-      console.log('✅ Reconstructed candidates:', results);
       
               // Restore JD hash from localStorage
         try {
           const storedJdHash = localStorage.getItem('matchagig_jdHash');
           const storedJdTextSnapshot = localStorage.getItem('matchagig_jdTextSnapshot');
           
-          console.log('🔍 localStorage check:', { 
-            storedJdHash, 
-            storedJdTextSnapshot,
-            hasJdHash: !!storedJdHash 
-          });
+
           
-          if (storedJdHash) {
-            state.jdHash = storedJdHash;
-            state.jdTextSnapshot = storedJdTextSnapshot || '';
-            console.log('✅ Restored JD hash from localStorage:', state.jdHash);
-            console.log('✅ State updated:', { jdHash: state.jdHash, jdTextSnapshot: state.jdTextSnapshot });
-          } else {
-            console.log('📭 No JD hash found in localStorage');
-            console.log('📭 Current state:', { jdHash: state.jdHash, jdTextSnapshot: state.jdTextSnapshot });
-          }
+                      if (storedJdHash) {
+              state.jdHash = storedJdHash;
+              state.jdTextSnapshot = storedJdTextSnapshot || '';
+            }
         } catch (error) {
           console.error('❌ Failed to restore JD hash from localStorage:', error);
         }
       
       // Make sure DOM is ready before rendering
       if (listEl && statusEl) {
-        console.log('🎯 DOM ready, rendering list with', results.length, 'candidates');
-        console.log('🎯 listEl:', listEl);
-        console.log('🎯 statusEl:', statusEl);
+
         
         renderList(results);
         setStatus(`Loaded ${results.length} stored candidate(s).`);
@@ -210,14 +173,9 @@ async function loadStoredCandidates() {
           jdStatusEl.textContent = `JD linked ✓ (${state.jdHash})`;
         }
       } else {
-        console.log('⚠️ DOM not ready yet, will retry...');
-        console.log('⚠️ listEl:', listEl);
-        console.log('⚠️ statusEl:', statusEl);
+
         setTimeout(loadStoredCandidates, 100);
       }
-    } else {
-      console.log('📭 No stored candidates found or invalid data');
-      console.log('📊 allRecords value:', allRecords);
     }
   } catch (error) {
     console.error('❌ Error loading stored candidates:', error);
@@ -233,27 +191,22 @@ if (document.readyState === 'loading') {
 
 // Add refresh button functionality
 refreshBtn.addEventListener('click', () => {
-  console.log('🔄 Manual refresh requested');
   loadStoredCandidates();
 });
 
 // Add clear storage functionality
 clearStorageBtn.addEventListener('click', async () => {
   if (confirm('⚠️ This will clear ALL stored data (candidates, PDFs, JD hash). Are you sure?')) {
-    console.log('🗑️ Clearing all storage...');
-    
     try {
       // Clear IndexedDB
       const db = await openDB();
       const tx = db.transaction(STORE, 'readwrite');
       const store = tx.objectStore(STORE);
       await store.clear();
-      console.log('✅ IndexedDB cleared');
       
       // Clear localStorage
       localStorage.removeItem('matchagig_jdHash');
       localStorage.removeItem('matchagig_jdTextSnapshot');
-      console.log('✅ localStorage cleared');
       
       // Reset state
       state.jdHash = null;
@@ -269,8 +222,6 @@ clearStorageBtn.addEventListener('click', async () => {
       
       // Update status
       setStatus('All storage cleared. Ready for fresh upload.');
-      
-      console.log('✅ All storage cleared successfully');
     } catch (error) {
       console.error('❌ Error clearing storage:', error);
       setStatus('Error clearing storage: ' + error.message);
@@ -319,27 +270,21 @@ sendBtn.addEventListener('click', async () => {
       state.jdHash = data.jdHash;
       state.jdTextSnapshot = jdTextEl.value.trim();
       jdStatusEl.textContent = `JD linked ✓ (${data.jdHash})`;
-      console.log('✅ JD hash linked from bulk-zip response:', data.jdHash);
-      console.log('✅ State updated:', { jdHash: state.jdHash, jdTextSnapshot: state.jdTextSnapshot });
+
       
       // Store JD hash in localStorage for persistence
       try {
         localStorage.setItem('matchagig_jdHash', data.jdHash);
         localStorage.setItem('matchagig_jdTextSnapshot', state.jdTextSnapshot);
-        console.log('💾 JD hash stored in localStorage for persistence');
       } catch (error) {
         console.error('❌ Failed to store JD hash in localStorage:', error);
       }
-    } else {
-      console.log('❌ No jdHash in bulk-zip response');
-      console.log('❌ Available keys:', Object.keys(data));
     }
 
     // 3) Build a quick lookup filename -> File for local preview storage
     const fileMap = new Map(selectedFiles.map(f => [baseName(f.name), f]));
 
     // 4) Persist PDFs + canonicalText in IDB by resumeId
-    console.log('💾 Storing candidates in IndexedDB...');
     for (const row of (data.results || [])) {
       const file = fileMap.get(baseName(row.filename));
       const objectUrl = file ? URL.createObjectURL(file) : '';
@@ -358,23 +303,17 @@ sendBtn.addEventListener('click', async () => {
         }
       };
       
-      console.log('💾 Storing record:', record.resumeId, record.meta.filename);
-      console.log('💾 File object:', !!record.file, 'Size:', record.file?.size);
-      console.log('💾 ObjectUrl:', !!record.meta.objectUrl);
+
       await putResume(record);
     }
-    console.log('✅ Finished storing candidates in IndexedDB');
+
 
                     // 5) Build candidates array with objectUrl for immediate use
                 state.candidates = (data.results || []).map(row => {
                   const file = fileMap.get(baseName(row.filename));
                   const objectUrl = file ? URL.createObjectURL(file) : '';
                   
-                  console.log('🔗 Building candidate with objectUrl:', {
-                    filename: baseName(row.filename),
-                    hasFile: !!file,
-                    objectUrl: !!objectUrl
-                  });
+
                   
                   return {
                     ...row,
@@ -382,7 +321,7 @@ sendBtn.addEventListener('click', async () => {
                   };
                 });
                 
-                console.log('✅ State candidates updated with objectUrl:', state.candidates.length);
+
                 renderList(state.candidates);
     
     // Update status with JD hash info if available
@@ -400,15 +339,9 @@ sendBtn.addEventListener('click', async () => {
 });
 
 function renderList(rows) {
-  console.log('🎨 renderList called with', rows.length, 'rows');
-  console.log('🎨 listEl:', listEl);
-  console.log('🎨 First few rows:', rows.slice(0, 3));
-  
   const sorted = rows.slice().sort((a, b) => (b.cosine ?? 0) - (a.cosine ?? 0));
-  console.log('🎨 Sorted rows:', sorted.length);
   
   listEl.innerHTML = '';
-  console.log('🎨 Cleared listEl innerHTML');
   
   for (const r of sorted) {
     const label = r.email || baseName(r.filename) || r.resumeId;
@@ -418,14 +351,7 @@ function renderList(rows) {
     div.innerHTML = `<span>${label}</span><span>${fmtCos(r.cosine)}</span>`;
     div.addEventListener('click', onSelectCandidate);
     listEl.appendChild(div);
-    
-    // Debug: log the first few elements being created
-    if (listEl.children.length <= 3) {
-      console.log('🎨 Created element:', div.outerHTML);
-    }
   }
-  
-  console.log('🎨 Finished rendering, listEl children count:', listEl.children.length);
 }
 
 async function onSelectCandidate(e) {
@@ -447,16 +373,8 @@ async function onSelectCandidate(e) {
   // Use the reconstructed objectUrl for PDF preview
   if (candidate.objectUrl) {
     pdfFrame.src = candidate.objectUrl;
-    console.log('📄 PDF preview set to:', candidate.objectUrl);
   } else {
     pdfFrame.src = '';
-    console.log('⚠️ No objectUrl available for PDF preview');
-    console.log('⚠️ Candidate data:', {
-      resumeId: candidate.resumeId,
-      filename: candidate.filename,
-      hasFile: !!candidate.file,
-      objectUrl: candidate.objectUrl
-    });
   }
 
   try {
@@ -477,15 +395,7 @@ async function explainCandidate(rec) {
     includePerTerm: true
   };
 
-  // Debug logging
-  console.log('Sending to /v1/explain-llm:', {
-    resumeTextLength: rec.canonicalText?.length || 0,
-    useHash: useHash,
-    jdHash: state.jdHash || 'none',
-    jdText: useHash ? 'not sent (using hash)' : jdTextarea.value,
-    payload: payload,
-    state: { ...state }
-  });
+
 
   const res = await fetch('http://localhost:8787/v1/explain-llm', {
     method: 'POST',
