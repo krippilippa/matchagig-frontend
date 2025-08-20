@@ -7,9 +7,10 @@
   <!-- layout only -->
   <style>
     html, body { height: 100%; margin: 0; }
-    .app { display: grid; grid-template-columns: 320px 1fr; height: 100vh; }
+    .app { display: grid; grid-template-columns: 320px 1fr 400px; height: 100vh; }
     .left { padding: 8px; overflow: auto; }
     .right { padding: 8px; overflow: auto; }
+    .chat { padding: 8px; overflow: auto; border-left: 1px solid #ddd; }
     .row { display: flex; justify-content: space-between; gap: 8px; padding: 6px 4px; cursor: pointer; }
     .row:hover { outline: 1px dotted #ccc; }
     .toolbar { display: grid; gap: 8px; }
@@ -24,6 +25,53 @@
       white-space: pre-wrap; 
       font-family: monospace; 
       font-size: 12px; 
+    }
+    #chatLog { 
+      max-height: 300px; 
+      overflow-y: auto; 
+      margin-bottom: 16px; 
+      border: 1px solid #ddd; 
+      padding: 8px; 
+      background: #f9f9f9; 
+    }
+    #chatLog .user { 
+      background: #e3f2fd; 
+      padding: 8px; 
+      margin: 4px 0; 
+      border-radius: 4px; 
+      font-weight: bold; 
+    }
+    #chatLog .assistant { 
+      background: #f1f8e9; 
+      padding: 8px; 
+      margin: 4px 0; 
+      border-radius: 4px; 
+      white-space: pre-wrap; 
+      font-family: monospace; 
+      font-size: 12px; 
+    }
+    #chatActions { 
+      display: grid; 
+      gap: 4px; 
+      margin-bottom: 16px; 
+    }
+    #chatActions button { 
+      padding: 8px; 
+      font-size: 12px; 
+      text-align: left; 
+    }
+    #chatInput { 
+      display: flex; 
+      gap: 8px; 
+      align-items: flex-start; 
+    }
+    #chatText { 
+      flex: 1; 
+      resize: vertical; 
+    }
+    #btnSend { 
+      padding: 8px 16px; 
+      white-space: nowrap; 
     }
   </style>
   <!-- JSZip in browser to make a zip from PDFs -->
@@ -60,6 +108,22 @@
       <iframe id="pdfFrame" class="pdf"></iframe>
       <pre id="explainMd"></pre>
     </main>
+
+    <aside class="chat">
+      <div id="chat">
+        <div id="chatLog"></div>
+        <div id="chatActions">
+          <button id="btnExplain">Initial assessment</button>
+          <button data-mode="interview_questions">Interview questions</button>
+          <button data-mode="email_candidate">Email candidate</button>
+          <button data-mode="email_hiring_manager">Email hiring manager</button>
+        </div>
+        <div id="chatInput">
+          <textarea id="chatText" rows="3" placeholder="Ask something..."></textarea>
+          <button id="btnSend">Send</button>
+        </div>
+      </div>
+    </aside>
   </div>
 
   <script type="module" src="./main.js"></script>

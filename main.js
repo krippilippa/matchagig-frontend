@@ -15,13 +15,20 @@ const jdTextarea = $('jdText');
 const jdStatusEl = $('jdStatus');
 const refreshBtn = $('refreshBtn');
 const clearStorageBtn = $('clearStorageBtn');
+const chatLog    = $('chatLog');
+const chatText   = $('chatText');
 
 // --- State Management ---
 const state = {
   jdHash: null,
   jdTextSnapshot: '',   // the JD textarea value that produced jdHash
-  candidates: []        // from /v1/bulk-zip
+  candidates: [],        // from /v1/bulk-zip
+  messages: [],          // running chat
+  currentCandidate: null // { canonicalText, pdfUrl, email, ... }
 };
+
+// Flag to prevent multiple event listener setups
+let chatEventListenersSetup = false;
 
 // --- IndexedDB (minimal) ---
 const DB_NAME = 'bulkzip-demo';
@@ -135,6 +142,103 @@ let selectedFiles = [];  // File[]
               jdStatusEl.style.color = '#4CAF50';
             }
 
+// Add clear storage functionality
+clearStorageBtn.addEventListener('click', async () => {
+  if (confirm('⚠️ This will clear ALL stored data (candidates, PDFs, JD hash). Are you sure?')) {
+    try {
+      // Clear IndexedDB
+      const db = await openDB();
+      const tx = db.transaction(STORE, 'readwrite');
+      const store = tx.objectStore(STORE);
+      await store.clear();
+      
+      // Clear localStorage
+      localStorage.removeItem('matchagig_jdHash');
+      localStorage.removeItem('matchagig_jdTextSnapshot');
+      
+      // Reset state
+      state.jdHash = null;
+      state.jdTextSnapshot = '';
+      state.candidates = [];
+      
+      // Clear UI
+      listEl.innerHTML = '';
+      pdfFrame.src = '';
+      viewerTitle.textContent = 'No candidate selected';
+      explainMd.textContent = '';
+      explainMd.style.borderLeft = '';
+      explainMd.title = '';
+      jdStatusEl.textContent = '';
+      chatLog.innerHTML = '';
+      
+      // Clear chat state
+      state.messages = [];
+      state.currentCandidate = null;
+      
+      // Reset event listener flag so they can be setup again if needed
+      chatEventListenersSetup = false;
+      
+      // Update status
+      setStatus('All storage cleared. Ready for fresh upload.');
+    } catch (error) {
+      console.error('❌ Error clearing storage:', error);
+      setStatus('Error clearing storage: ' + error.message);
+    }
+  }
+});
+
+// --- Chat Event Listeners ---
+function setupChatEventListeners() {
+  // Prevent multiple setups
+  if (chatEventListenersSetup) {
+    console.log('Chat event listeners already setup, skipping...');
+    return;
+  }
+  
+  console.log('Setting up chat event listeners...');
+  
+  const btnExplain = document.getElementById('btnExplain');
+  const btnSend = document.getElementById('btnSend');
+  const modeButtons = document.querySelectorAll('#chatActions [data-mode]');
+  
+  console.log('Chat elements found:', {
+    btnExplain: !!btnExplain,
+    btnSend: !!btnSend,
+    modeButtons: modeButtons.length,
+    chatLog: !!chatLog,
+    chatText: !!chatText
+  });
+  
+  if (btnExplain) {
+    btnExplain.addEventListener('click', () => {
+      appendMsg('user', 'Give me a succinct 30-second assessment of fit.');
+      callChat(); // no mode = general
+    });
+  }
+  
+  modeButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mode = btn.getAttribute('data-mode');
+      appendMsg('user', `[${mode}]`);
+      callChat(mode);
+    });
+  });
+  
+  if (btnSend) {
+    btnSend.addEventListener('click', () => {
+      const text = chatText.value.trim();
+      if (!text) return;
+      chatText.value = '';
+      appendMsg('user', text);
+      callChat(); // general freeform
+    });
+  }
+  
+  // Mark as setup
+  chatEventListenersSetup = true;
+  console.log('Chat event listeners setup complete');
+}
+
 // Load stored candidates from IndexedDB on page load
 async function loadStoredCandidates() {
   try {
@@ -200,6 +304,14 @@ async function loadStoredCandidates() {
         if (state.jdHash) {
           jdStatusEl.textContent = `JD linked ✓ (${state.jdHash})`;
         }
+        
+        // Initialize chat
+        chatLog.innerHTML = '';
+        state.messages = [];
+        state.currentCandidate = null;
+        
+        // Setup chat event listeners (only once)
+        // setupChatEventListeners(); // Removed duplicate call
       } else {
 
         setTimeout(loadStoredCandidates, 100);
@@ -212,51 +324,18 @@ async function loadStoredCandidates() {
 
 // Wait for DOM to be ready before loading candidates
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', loadStoredCandidates);
+  document.addEventListener('DOMContentLoaded', () => {
+    loadStoredCandidates();
+    setupChatEventListeners();
+  });
 } else {
   loadStoredCandidates();
+  setupChatEventListeners();
 }
 
 // Add refresh button functionality
 refreshBtn.addEventListener('click', () => {
   loadStoredCandidates();
-});
-
-// Add clear storage functionality
-clearStorageBtn.addEventListener('click', async () => {
-  if (confirm('⚠️ This will clear ALL stored data (candidates, PDFs, JD hash). Are you sure?')) {
-    try {
-      // Clear IndexedDB
-      const db = await openDB();
-      const tx = db.transaction(STORE, 'readwrite');
-      const store = tx.objectStore(STORE);
-      await store.clear();
-      
-      // Clear localStorage
-      localStorage.removeItem('matchagig_jdHash');
-      localStorage.removeItem('matchagig_jdTextSnapshot');
-      
-      // Reset state
-      state.jdHash = null;
-      state.jdTextSnapshot = '';
-      state.candidates = [];
-      
-      // Clear UI
-      listEl.innerHTML = '';
-      pdfFrame.src = '';
-      viewerTitle.textContent = 'No candidate selected';
-      explainMd.textContent = '';
-      explainMd.style.borderLeft = '';
-      explainMd.title = '';
-      jdStatusEl.textContent = '';
-      
-      // Update status
-      setStatus('All storage cleared. Ready for fresh upload.');
-    } catch (error) {
-      console.error('❌ Error clearing storage:', error);
-      setStatus('Error clearing storage: ' + error.message);
-    }
-  }
 });
 
 pdfInput.addEventListener('change', (e) => {
@@ -398,6 +477,11 @@ async function onSelectCandidate(e) {
   const rec = await getResume(rid);
   if (!rec) { setStatus('Not found in IndexedDB.'); return; }
 
+  // Set current candidate for chat
+  state.currentCandidate = rec;
+  state.messages = []; // start a fresh chat per candidate
+  chatLog.innerHTML = '';
+
   viewerTitle.textContent = candidate.email || candidate.filename || candidate.resumeId;
   
   // Use the reconstructed objectUrl for PDF preview
@@ -512,6 +596,70 @@ async function explainCandidate(rec) {
   } catch (error) {
     console.error('Failed to store LLM response:', error);
   }
+}
+
+// --- Chat Functions ---
+function appendMsg(role, content) {
+  if (!chatLog) {
+    console.error('Chat log element not found');
+    return;
+  }
+  
+  const wrap = document.createElement('div');
+  wrap.className = role;
+  wrap.textContent = content;
+  chatLog.appendChild(wrap);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  // Keep local history
+  state.messages.push({ role, content });
+}
+
+async function callChat(mode) {
+  // Defensive checks
+  if (!jdTextEl) {
+    console.error('JD text element not found');
+    appendMsg('assistant', 'Error: JD text element not found');
+    return;
+  }
+  
+  if (!state.currentCandidate) {
+    appendMsg('assistant', 'Please select a candidate first');
+    return;
+  }
+
+  if (!state.jdHash) {
+    appendMsg('assistant', 'Please set a JD hash first');
+    return;
+  }
+
+  const jdHash = state.jdHash;
+  const resumeText = state.currentCandidate?.canonicalText || '';
+  const payload = { jdHash, resumeText, messages: state.messages, mode };
+
+  console.log('Sending to /v1/chat:', payload);
+
+  const res = await fetch('http://localhost:8787/v1/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'text/markdown' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    let errorMessage = `Chat failed: ${res.status}`;
+    
+    // Try to get more details from the response
+    try {
+      const responseText = await res.text();
+      console.error('Backend error response:', responseText);
+      errorMessage += `: ${responseText}`;
+    } catch (e) {
+      console.error('Could not read error response:', e);
+    }
+    
+    appendMsg('assistant', errorMessage);
+    return;
+  }
+  const md = await res.text();
+  appendMsg('assistant', md);
 }
 
 
