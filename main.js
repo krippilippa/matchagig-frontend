@@ -110,21 +110,14 @@ function fmtCos(x) { return (typeof x === 'number') ? x.toFixed(3) : ''; }
 
 let selectedFiles = [];  // File[]
 
-            // Handle manual JD hash input
+            // Handle manual JD hash input (for bulk-zip compatibility)
             jdHashEl.addEventListener('input', () => {
               const hash = jdHashEl.value.trim();
               if (hash) {
-                // Basic validation: JD hash should be alphanumeric and reasonable length
-                if (/^[a-f0-9]{16,32}$/i.test(hash)) {
-                  state.jdHash = hash;
-                  state.jdTextSnapshot = jdTextarea.value;
-                  jdStatusEl.textContent = `JD linked ✓ (${hash})`;
-                  jdStatusEl.style.color = '#4CAF50';
-                } else {
-                  state.jdHash = null;
-                  jdStatusEl.textContent = `⚠️ Invalid hash format (${hash})`;
-                  jdStatusEl.style.color = '#FF9800';
-                }
+                state.jdHash = hash;
+                state.jdTextSnapshot = jdTextarea.value;
+                jdStatusEl.textContent = `JD hash set ✓ (${hash})`;
+                jdStatusEl.style.color = '#4CAF50';
               } else {
                 state.jdHash = null;
                 state.jdTextSnapshot = '';
@@ -136,12 +129,10 @@ let selectedFiles = [];  // File[]
             // Initialize JD status display
             if (jdHashEl.value.trim()) {
               const hash = jdHashEl.value.trim();
-              if (/^[a-f0-9]{16,32}$/i.test(hash)) {
-                state.jdHash = hash;
-                state.jdTextSnapshot = jdTextarea.value;
-                jdStatusEl.textContent = `JD linked ✓ (${hash})`;
-                jdStatusEl.style.color = '#4CAF50';
-              }
+              state.jdHash = hash;
+              state.jdTextSnapshot = jdTextarea.value;
+              jdStatusEl.textContent = `JD hash set ✓ (${hash})`;
+              jdStatusEl.style.color = '#4CAF50';
             }
 
 // Load stored candidates from IndexedDB on page load
@@ -448,19 +439,18 @@ async function explainCandidate(rec) {
     }
   }
 
-  // New API contract: jdHash is required, no jdText support
-  if (!state.jdHash) {
-    document.getElementById('explainMd').textContent = '❌ JD Hash required. Please upload a job description first to get a JD hash.';
+  // New API contract: use jdText and resumeText directly
+  const jdText = jdTextarea.value.trim();
+  if (!jdText) {
+    document.getElementById('explainMd').textContent = '❌ Job description text required. Please paste the job description in the JD textarea.';
     document.getElementById('explainMd').style.borderLeft = '4px solid #f44336';
-    document.getElementById('explainMd').title = 'JD Hash missing - upload JD first';
+    document.getElementById('explainMd').title = 'JD text missing - paste job description first';
     return;
   }
 
   const payload = {
-    resumeText: rec.canonicalText,
-    jdHash: state.jdHash,
-    topKGlobal: 14,
-    includePerTerm: true
+    jdText: jdText,
+    resumeText: rec.canonicalText
   };
 
   const res = await fetch('http://localhost:8787/v1/explain-llm', {
@@ -474,9 +464,7 @@ async function explainCandidate(rec) {
     
     // Provide more helpful error messages based on status
     if (res.status === 400) {
-      errorMessage = '❌ Bad Request: Check that jdHash is valid and resumeText is provided';
-    } else if (res.status === 404) {
-      errorMessage = '❌ JD Hash not found: Please upload the job description first via /v1/jd endpoint';
+      errorMessage = '❌ Bad Request: Check that jdText and resumeText are provided and valid';
     } else if (res.status === 500) {
       errorMessage = '❌ Server Error: Please try again later';
     }
