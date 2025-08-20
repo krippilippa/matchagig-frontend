@@ -60,6 +60,39 @@ function openDB() {
               }
             }
 
+            async function updateResumeLLMResponse(resumeId, llmResponse) {
+              try {
+                const db = await openDB();
+                return new Promise((resolve, reject) => {
+                  const tx = db.transaction(STORE, 'readwrite');
+                  const store = tx.objectStore(STORE);
+
+                  // First get the existing record
+                  const getRequest = store.get(resumeId);
+                  getRequest.onsuccess = () => {
+                    const record = getRequest.result;
+                    if (record) {
+                      // Update the record with the LLM response
+                      record.llmResponse = llmResponse;
+                      record.llmResponseTimestamp = Date.now();
+                      
+                      // Put the updated record back
+                      const putRequest = store.put(record);
+                      putRequest.onsuccess = () => resolve();
+                      putRequest.onerror = () => reject(putRequest.error);
+                    } else {
+                      reject(new Error('Resume not found'));
+                    }
+                  };
+                  getRequest.onerror = () => reject(getRequest.error);
+                  tx.onerror = () => reject(tx.error);
+                });
+              } catch (error) {
+                console.error('❌ updateResumeLLMResponse error:', error);
+                throw error;
+              }
+            }
+
 async function getResume(resumeId) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -218,6 +251,8 @@ clearStorageBtn.addEventListener('click', async () => {
       pdfFrame.src = '';
       viewerTitle.textContent = 'No candidate selected';
       explainMd.textContent = '';
+      explainMd.style.borderLeft = '';
+      explainMd.title = '';
       jdStatusEl.textContent = '';
       
       // Update status
@@ -377,15 +412,38 @@ async function onSelectCandidate(e) {
     pdfFrame.src = '';
   }
 
+  // Show loading state
+  explainMd.textContent = 'Generating explanation...';
+  explainMd.style.borderLeft = '4px solid #FF9800';
+  explainMd.title = 'Loading...';
+  
   try {
     await explainCandidate(rec);
   } catch (err) {
     console.error(err);
     explainMd.textContent = 'Could not generate explanation.';
+    explainMd.style.borderLeft = '4px solid #f44336';
+    explainMd.title = 'Error occurred while generating explanation';
   }
 }
 
 async function explainCandidate(rec) {
+  // Check if we have a cached LLM response
+  if (rec.llmResponse && rec.llmResponseTimestamp) {
+    const age = Date.now() - rec.llmResponseTimestamp;
+    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+    
+    if (age < maxAge) {
+      // Use cached response if it's less than 24 hours old
+      document.getElementById('explainMd').textContent = rec.llmResponse;
+      // Add a small indicator that this is cached
+      const explainMd = document.getElementById('explainMd');
+      explainMd.style.borderLeft = '4px solid #4CAF50';
+      explainMd.title = `Cached response from ${new Date(rec.llmResponseTimestamp).toLocaleString()}`;
+      return;
+    }
+  }
+
   const useHash = !!state.jdHash;
   const payload = {
     resumeText: rec.canonicalText,
@@ -394,8 +452,6 @@ async function explainCandidate(rec) {
     topKGlobal: 14,
     includePerTerm: true
   };
-
-
 
   const res = await fetch('http://localhost:8787/v1/explain-llm', {
     method: 'POST',
@@ -417,7 +473,17 @@ async function explainCandidate(rec) {
   }
 
   const md = await res.text();
-  document.getElementById('explainMd').textContent = md; // render as plain text or via a markdown renderer
+  const explainMd = document.getElementById('explainMd');
+  explainMd.textContent = md;
+  explainMd.style.borderLeft = '4px solid #2196F3';
+  explainMd.title = 'Fresh response generated just now';
+  
+  // Store the LLM response in IndexedDB
+  try {
+    await updateResumeLLMResponse(rec.resumeId, md);
+  } catch (error) {
+    console.error('Failed to store LLM response:', error);
+  }
 }
 
 
