@@ -110,35 +110,39 @@ function fmtCos(x) { return (typeof x === 'number') ? x.toFixed(3) : ''; }
 
 let selectedFiles = [];  // File[]
 
-// Invalidate hash if the user edits the JD text
-jdTextarea.addEventListener('input', () => {
-  const current = jdTextarea.value;
-  if (state.jdHash && current !== state.jdTextSnapshot) {
-    state.jdHash = null;
-    jdStatusEl.textContent = 'JD edited — not linked';
-  }
-});
+            // Handle manual JD hash input
+            jdHashEl.addEventListener('input', () => {
+              const hash = jdHashEl.value.trim();
+              if (hash) {
+                // Basic validation: JD hash should be alphanumeric and reasonable length
+                if (/^[a-f0-9]{16,32}$/i.test(hash)) {
+                  state.jdHash = hash;
+                  state.jdTextSnapshot = jdTextarea.value;
+                  jdStatusEl.textContent = `JD linked ✓ (${hash})`;
+                  jdStatusEl.style.color = '#4CAF50';
+                } else {
+                  state.jdHash = null;
+                  jdStatusEl.textContent = `⚠️ Invalid hash format (${hash})`;
+                  jdStatusEl.style.color = '#FF9800';
+                }
+              } else {
+                state.jdHash = null;
+                state.jdTextSnapshot = '';
+                jdStatusEl.textContent = '';
+                jdStatusEl.style.color = '#666';
+              }
+            });
 
-// Handle manual JD hash input
-jdHashEl.addEventListener('input', () => {
-  const hash = jdHashEl.value.trim();
-  if (hash) {
-    state.jdHash = hash;
-    state.jdTextSnapshot = jdTextarea.value;
-    jdStatusEl.textContent = `JD linked ✓ (${hash})`;
-  } else {
-    state.jdHash = null;
-    jdStatusEl.textContent = '';
-  }
-});
-
-// Initialize JD status display
-if (jdHashEl.value.trim()) {
-  const hash = jdHashEl.value.trim();
-  state.jdHash = hash;
-  state.jdTextSnapshot = jdTextarea.value;
-  jdStatusEl.textContent = `JD linked ✓ (${hash})`;
-}
+            // Initialize JD status display
+            if (jdHashEl.value.trim()) {
+              const hash = jdHashEl.value.trim();
+              if (/^[a-f0-9]{16,32}$/i.test(hash)) {
+                state.jdHash = hash;
+                state.jdTextSnapshot = jdTextarea.value;
+                jdStatusEl.textContent = `JD linked ✓ (${hash})`;
+                jdStatusEl.style.color = '#4CAF50';
+              }
+            }
 
 // Load stored candidates from IndexedDB on page load
 async function loadStoredCandidates() {
@@ -444,11 +448,17 @@ async function explainCandidate(rec) {
     }
   }
 
-  const useHash = !!state.jdHash;
+  // New API contract: jdHash is required, no jdText support
+  if (!state.jdHash) {
+    document.getElementById('explainMd').textContent = '❌ JD Hash required. Please upload a job description first to get a JD hash.';
+    document.getElementById('explainMd').style.borderLeft = '4px solid #f44336';
+    document.getElementById('explainMd').title = 'JD Hash missing - upload JD first';
+    return;
+  }
+
   const payload = {
     resumeText: rec.canonicalText,
-    // prefer jdHash, else jdText
-    ...(useHash ? { jdHash: state.jdHash } : { jdText: jdTextarea.value }),
+    jdHash: state.jdHash,
     topKGlobal: 14,
     includePerTerm: true
   };
@@ -460,7 +470,20 @@ async function explainCandidate(rec) {
   });
 
   if (!res.ok) {
-    document.getElementById('explainMd').textContent = `Explain failed: ${res.status}`;
+    let errorMessage = `Explain failed: ${res.status}`;
+    
+    // Provide more helpful error messages based on status
+    if (res.status === 400) {
+      errorMessage = '❌ Bad Request: Check that jdHash is valid and resumeText is provided';
+    } else if (res.status === 404) {
+      errorMessage = '❌ JD Hash not found: Please upload the job description first via /v1/jd endpoint';
+    } else if (res.status === 500) {
+      errorMessage = '❌ Server Error: Please try again later';
+    }
+    
+    document.getElementById('explainMd').textContent = errorMessage;
+    document.getElementById('explainMd').style.borderLeft = '4px solid #f44336';
+    document.getElementById('explainMd').title = `Error ${res.status}: ${errorMessage}`;
     return;
   }
 
