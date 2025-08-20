@@ -1,75 +1,61 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MatchaGig — Resume Upload Test</title>
-    <link rel="stylesheet" href="./styles.css" />
-    <link rel="stylesheet" href="./sidebar.css" />
-  </head>
-  <body>
-    <div class="layout">
-      <aside id="sidebar"></aside>
-      <main class="container" id="main">
-      
-      <section id="section-allresumes">
-        <div class="split">
-          <div class="left-col">
-            <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Drop file here or click to select">
-              <div class="drop-zone__content">
-                <strong>Drag & drop</strong> your résumé here
-                <span class="muted">or click to choose a file</span>
-                <span class="hint">Max 10 MB. Accepted: .pdf, .docx, .txt</span>
-                <button id="choose-file-btn" type="button" class="btn">Choose file</button>
-              </div>
-              <input id="file-input" type="file" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,text/plain,.txt" hidden />
-            </div>
-            <span id="status-text" class="status" aria-live="polite"></span>
-            
-            <div id="upload-results" class="upload-results" style="display: none;">
-              <h3>Upload Response</h3>
-              <div id="upload-data" class="upload-data"></div>
-            </div>
-          </div>
-          
-          <div id="allresumes-right" class="right-col">
-            <div class="section">
-              <div class="section-title">Manual Overview Generation</div>
-              <div class="manual-overview">
-                <div class="input-group">
-                  <label for="resume-id-input">Resume ID:</label>
-                  <input type="text" id="resume-id-input" placeholder="Enter resume ID" />
-                  <button id="generate-overview-btn" type="button" class="btn btn-primary">Generate Overview</button>
-                </div>
-                <div class="known-ids">
-                  <label>Quick Test IDs:</label>
-                  <div class="id-list">
-                    <button type="button" class="btn btn-sm btn-outline" data-resume-id="77b120d8-00eb-42b0-a5c7-32fd918048a2">77b120d8...</button>
-                    <button type="button" class="btn btn-sm btn-outline" data-resume-id="29da569d-7696-4fb2-9838-03c0697175b5">29da569d...</button>
-                    <button type="button" class="btn btn-sm btn-outline" data-resume-id="ab91eea4-cf3c-4650-ab59-e3cf8f220006">ab91eea4...</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div class="section">
-              <div class="section-title">Resume Overview</div>
-              <div id="resume-overview" class="overview"></div>
-            </div>
-          </div>
-        </div>
-      </section>
-      </main>
-    </div>
+<head>
+  <meta charset="utf-8" />
+  <title>Bulk ZIP → /v1/bulk-zip (Demo)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- layout only -->
+  <style>
+    html, body { height: 100%; margin: 0; }
+    .app { display: grid; grid-template-columns: 320px 1fr; height: 100vh; }
+    .left { padding: 8px; overflow: auto; }
+    .right { padding: 8px; overflow: auto; }
+    .row { display: flex; justify-content: space-between; gap: 8px; padding: 6px 4px; cursor: pointer; }
+    .row:hover { outline: 1px dotted #ccc; }
+    .toolbar { display: grid; gap: 8px; }
+    .list { margin-top: 12px; }
+    .pdf { width: 100%; height: 50vh; border: 1px solid #ddd; margin-bottom: 16px; }
+    #explainMd { 
+      background: #f5f5f5; 
+      padding: 12px; 
+      border: 1px solid #ddd; 
+      max-height: 40vh; 
+      overflow: auto; 
+      white-space: pre-wrap; 
+      font-family: monospace; 
+      font-size: 12px; 
+    }
+  </style>
+  <!-- JSZip in browser to make a zip from PDFs -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="left">
+      <div class="toolbar">
+        <input type="file" id="pdfInput" accept="application/pdf" multiple />
+        <label for="jdText">JD text (required for LLM explanation):</label>
+        <textarea id="jdText" rows="6" placeholder="Paste JD text here..." required></textarea>
+        <div id="jdStatus" style="font-size: 12px; color: #666; margin-top: 4px;"></div>
+        <label for="jdHash">OR JD hash:</label>
+        <input id="jdHash" type="text" placeholder="e.g. f39d42dbe2bbbb76" />
+        <small style="color: #666;">You need either JD text or JD hash to generate explanations.</small>
+        <button id="sendBtn">Zip & Send to /v1/bulk-zip</button>
+        <button id="refreshBtn" style="font-size: 12px; padding: 4px 8px;">Refresh Stored Data</button>
+        <button id="clearStorageBtn" style="font-size: 12px; padding: 4px 8px; background-color: #ff6b6b; color: white; border: none;">Clear All Storage</button>
+        <div id="status"></div>
+      </div>
 
-    <script src="./state.js" defer></script>
-    <script src="./config.js" defer></script>
-    <script src="./api.js" defer></script>
-    <script src="./preview.js" defer></script>
-    <script src="./sidebar.js" defer></script>
-    <script src="./uploader.js" defer></script>
-    <script src="./main.js" defer></script>
-  </body>
+      <div class="list" id="list"></div>
+    </aside>
+
+    <main class="right">
+      <h3 id="viewerTitle">No candidate selected</h3>
+      <iframe id="pdfFrame" class="pdf"></iframe>
+      <pre id="explainMd"></pre>
+    </main>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
 </html>
-
-
