@@ -439,17 +439,16 @@ async function explainCandidate(rec) {
     }
   }
 
-  // New API contract: use jdText and resumeText directly
-  const jdText = jdTextarea.value.trim();
-  if (!jdText) {
-    document.getElementById('explainMd').textContent = '❌ Job description text required. Please paste the job description in the JD textarea.';
+  // API contract: use jdHash and resumeText
+  if (!state.jdHash) {
+    document.getElementById('explainMd').textContent = '❌ JD Hash required. Please enter a valid JD hash in the hash field above.';
     document.getElementById('explainMd').style.borderLeft = '4px solid #f44336';
-    document.getElementById('explainMd').title = 'JD text missing - paste job description first';
+    document.getElementById('explainMd').title = 'JD Hash missing - enter hash for LLM explanations';
     return;
   }
 
   const payload = {
-    jdText: jdText,
+    jdHash: state.jdHash,
     resumeText: rec.canonicalText
   };
 
@@ -464,7 +463,9 @@ async function explainCandidate(rec) {
     
     // Provide more helpful error messages based on status
     if (res.status === 400) {
-      errorMessage = '❌ Bad Request: Check that jdText and resumeText are provided and valid';
+      errorMessage = '❌ Bad Request: Check that jdHash and resumeText are provided and valid';
+    } else if (res.status === 404) {
+      errorMessage = '❌ JD Hash not found: Please check that the hash is correct';
     } else if (res.status === 500) {
       errorMessage = '❌ Server Error: Please try again later';
     }

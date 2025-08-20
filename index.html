@@ -34,17 +34,17 @@
     <aside class="left">
                         <div class="toolbar">
                     <input type="file" id="pdfInput" accept="application/pdf" multiple />
-                    <label for="jdText">Job Description (required for LLM explanations):</label>
-                    <textarea id="jdText" rows="6" placeholder="Paste the full job description here..." required></textarea>
+                    <label for="jdText">Job Description (for bulk-zip processing):</label>
+                    <textarea id="jdText" rows="6" placeholder="Paste the full job description here for bulk processing..." required></textarea>
                     <div id="jdStatus" style="font-size: 12px; color: #666; margin-top: 4px;"></div>
-                    <label for="jdHash">JD hash (optional, for bulk-zip compatibility):</label>
-                    <input id="jdHash" type="text" placeholder="e.g. f39d42dbe2bbbb76" />
-                    <small style="color: #666;">💡 Simply paste the job description above for LLM explanations. JD hash is optional for bulk processing.</small>
+                    <label for="jdHash">JD hash (required for LLM explanations):</label>
+                    <input id="jdHash" type="text" placeholder="e.g. f39d42dbe2bbbb76" required />
+                    <small style="color: #666;">⚠️ JD hash is required for LLM explanations. You can get this from the bulk-zip response or enter manually.</small>
                     <div style="font-size: 11px; color: #888; margin: 4px 0; padding: 8px; background: #f5f5f5; border-radius: 4px;">
-                      <strong>Simple Workflow:</strong><br>
-                      1. Paste job description in the textarea above<br>
-                      2. Upload resumes via bulk-zip (optional JD hash)<br>
-                      3. Click any candidate for instant LLM analysis
+                      <strong>Workflow:</strong><br>
+                      1. Paste job description and upload resumes via bulk-zip<br>
+                      2. Get jdHash from the response or enter manually<br>
+                      3. Use jdHash for LLM explanations when clicking candidates
                     </div>
                     <button id="sendBtn">Zip & Send to /v1/bulk-zip</button>
                     <button id="refreshBtn" style="font-size: 12px; padding: 4px 8px;">Refresh Stored Data</button>
