@@ -47,7 +47,6 @@ const backToDemoBtn = $('backToDemoBtn');
 const pdfInput   = $('pdfInput');
 const jdTextEl   = $('jdText');
 const jdHashEl   = $('jdHash');
-const sendBtn    = $('sendBtn');
 const statusEl   = $('status');
 const listEl     = $('list');
 const pdfFrame   = $('pdfFrame');
@@ -55,8 +54,6 @@ const viewerTitle= $('viewerTitle');
 const explainMd  = $('explainMd');
 const jdTextarea = $('jdText');
 const jdStatusEl = $('jdStatus');
-const refreshBtn = $('refreshBtn');
-const clearStorageBtn = $('clearStorageBtn');
 const chatLog    = $('chatLog');
 const chatText   = $('chatText');
 
@@ -107,7 +104,7 @@ function updateUploadStatus(fileCount) {
 }
 
 // Handle Run Match button
-runMatchBtn.addEventListener('click', () => {
+runMatchBtn.addEventListener('click', async () => {
   const files = landingPdfInput.files;
   const jdText = landingJdText.value.trim();
   
@@ -129,29 +126,65 @@ runMatchBtn.addEventListener('click', () => {
   landingPage.style.display = 'none';
   mainInterface.style.display = 'flex';
   
-  // Trigger the existing upload flow
+  // Set selected files and trigger the matching process
   selectedFiles = Array.from(files).filter(f => /\.pdf$/i.test(f.name));
   setStatus(statusEl, `${selectedFiles.length} PDF(s) ready`);
+  
+  // Automatically trigger the matching process
+  try {
+    runMatchBtn.disabled = true;
+    runMatchBtn.textContent = 'Processing...';
+    
+    // Trigger the existing upload flow automatically
+    await processResumes();
+    
+  } catch (error) {
+    console.error('Error during matching:', error);
+    setStatus(statusEl, 'Error during matching: ' + error.message);
+  } finally {
+    runMatchBtn.disabled = false;
+    runMatchBtn.textContent = 'Run Match';
+  }
 });
 
 // Handle Back to Demo button
-backToDemoBtn.addEventListener('click', () => {
-  // Clear the main interface
-  clearUI(listEl, pdfFrame, viewerTitle, explainMd, jdStatusEl, chatLog);
-  
-  // Reset state
-  state.candidates = [];
-  state.messages = [];
-  state.currentCandidate = null;
-  
-  // Switch back to landing page
-  mainInterface.style.display = 'none';
-  landingPage.style.display = 'block';
-  
-  // Reset landing page
-  landingPdfInput.value = '';
-  landingJdText.value = '';
-  updateUploadStatus(0);
+backToDemoBtn.addEventListener('click', async () => {
+  try {
+    // Clear IndexedDB
+    await clearAllResumes();
+    
+    // Clear localStorage
+    localStorage.removeItem('matchagig_jdHash');
+    localStorage.removeItem('matchagig_jdTextSnapshot');
+    
+    // Reset state
+    state.jdHash = null;
+    state.jdTextSnapshot = '';
+    state.candidates = [];
+    state.messages = [];
+    state.currentCandidate = null;
+    
+    // Clear UI
+    clearUI(listEl, pdfFrame, viewerTitle, explainMd, jdStatusEl, chatLog);
+    
+    // Reset chat event listeners
+    resetChatEventListeners();
+    
+    // Switch back to landing page
+    mainInterface.style.display = 'none';
+    landingPage.style.display = 'block';
+    
+    // Reset landing page
+    landingPdfInput.value = '';
+    landingJdText.value = '';
+    updateUploadStatus(0);
+    
+    // Update status
+    setStatus(statusEl, 'Demo reset. Ready for fresh upload.');
+  } catch (error) {
+    console.error('❌ Error resetting demo:', error);
+    setStatus(statusEl, 'Error resetting demo: ' + error.message);
+  }
 });
 
 // --- State Management ---
@@ -171,11 +204,10 @@ jdHashEl.addEventListener('input', () => {
   if (hash) {
     state.jdHash = hash;
     state.jdTextSnapshot = jdTextarea.value;
-    updateJDStatus(jdStatusEl, hash, state.jdTextSnapshot);
+    // JD status is hidden in demo mode
   } else {
     state.jdHash = null;
     state.jdTextSnapshot = '';
-    updateJDStatus(jdStatusEl, null, '');
   }
 });
 
@@ -184,43 +216,43 @@ if (jdHashEl.value.trim()) {
   const hash = jdHashEl.value.trim();
   state.jdHash = hash;
   state.jdTextSnapshot = jdTextarea.value;
-  updateJDStatus(jdStatusEl, hash, state.jdTextSnapshot);
+  // JD status is hidden in demo mode
 }
 
 // Add clear storage functionality
-clearStorageBtn.addEventListener('click', async () => {
-  if (confirm('⚠️ This will clear ALL stored data (candidates, PDFs, JD hash). Are you sure?')) {
-    try {
-      // Clear IndexedDB
-      await clearAllResumes();
+// clearStorageBtn.addEventListener('click', async () => {
+//   if (confirm('⚠️ This will clear ALL stored data (candidates, PDFs, JD hash). Are you sure?')) {
+//     try {
+//       // Clear IndexedDB
+//       await clearAllResumes();
       
-      // Clear localStorage
-      localStorage.removeItem('matchagig_jdHash');
-      localStorage.removeItem('matchagig_jdTextSnapshot');
+//       // Clear localStorage
+//       localStorage.removeItem('matchagig_jdHash');
+//       localStorage.removeItem('matchagig_jdTextSnapshot');
       
-      // Reset state
-      state.jdHash = null;
-      state.jdTextSnapshot = '';
-      state.candidates = [];
+//       // Reset state
+//       state.jdHash = null;
+//       state.jdTextSnapshot = '';
+//       state.candidates = [];
       
-      // Clear UI
-      clearUI(listEl, pdfFrame, viewerTitle, explainMd, jdStatusEl, chatLog);
+//       // Clear UI
+//       clearUI(listEl, pdfFrame, viewerTitle, explainMd, jdStatusEl, chatLog);
       
-      // Clear chat state
-      state.messages = [];
-      state.currentCandidate = null;
+//       // Clear chat state
+//       state.messages = [];
+//       state.currentCandidate = null;
       
-      // Reset event listener flag so they can be setup again if needed
-      resetChatEventListeners();
+//       // Reset event listener flag so they can be setup again if needed
+//       resetChatEventListeners();
       
-      // Update status
-      setStatus(statusEl, 'All storage cleared. Ready for fresh upload.');
-    } catch (error) {
-      console.error('❌ Error clearing storage:', error);
-      setStatus(statusEl, 'Error clearing storage: ' + error.message);
-    }
-  }
-});
+//       // Update status
+//       setStatus(statusEl, 'All storage cleared. Ready for fresh upload.');
+//     } catch (error) {
+//       console.error('❌ Error clearing storage:', error);
+//       setStatus(statusEl, 'Error clearing storage: ' + error.message);
+//     }
+//   }
+// });
 
 // Load stored candidates from IndexedDB on page load
 async function loadStoredCandidates() {
@@ -256,7 +288,7 @@ async function loadStoredCandidates() {
           
           // Check if we have a stored JD hash
           if (state.jdHash) {
-            updateJDStatus(jdStatusEl, state.jdHash, state.jdTextSnapshot);
+            // JD status is hidden in demo mode
           }
           
           // Initialize chat
@@ -284,9 +316,9 @@ if (document.readyState === 'loading') {
 }
 
 // Add refresh button functionality
-refreshBtn.addEventListener('click', () => {
-  loadStoredCandidates();
-});
+// refreshBtn.addEventListener('click', () => {
+//   loadStoredCandidates();
+// });
 
 let selectedFiles = [];  // File[]
 
@@ -295,92 +327,9 @@ pdfInput.addEventListener('change', (e) => {
   setStatus(statusEl, `${selectedFiles.length} PDF(s) ready`);
 });
 
-sendBtn.addEventListener('click', async () => {
-  if (!selectedFiles.length) { setStatus(statusEl, 'Select PDFs first.'); return; }
-
-  sendBtn.disabled = true;
-  setStatus(statusEl, 'Zipping…');
-
-  try {
-    // 1) Build the zip in-browser (keep original basenames)
-    const zipBlob = await createZipFromFiles(selectedFiles);
-
-    // 2) Submit to /v1/bulk-zip (multipart) with JD
-    const jdText = jdTextEl.value.trim();
-    const jdHash = jdHashEl.value.trim();
-    
-    setStatus(statusEl, 'Uploading…');
-    const data = await bulkZipUpload(zipBlob, jdText, jdHash);
-
-    // Check if backend returned a JD hash from bulk processing
-    if (data.jdHash) {
-      state.jdHash = data.jdHash;
-      state.jdTextSnapshot = jdTextEl.value.trim();
-      updateJDStatus(jdStatusEl, data.jdHash, state.jdTextSnapshot);
-      
-      // Store JD hash in localStorage for persistence
-      try {
-        localStorage.setItem('matchagig_jdHash', data.jdHash);
-        localStorage.setItem('matchagig_jdTextSnapshot', state.jdTextSnapshot);
-      } catch (error) {
-        console.error('❌ Failed to store JD hash in localStorage:', error);
-      }
-    }
-
-    // 3) Build a quick lookup filename -> File for local preview storage
-    const fileMap = createFileMap(selectedFiles);
-
-          // 4) Persist PDFs + canonicalText in IDB by resumeId
-      for (const row of (data.results || [])) {
-        const file = fileMap.get(baseName(row.filename));
-        const objectUrl = file ? URL.createObjectURL(file) : '';
-        
-        console.log('Storing record for:', row.filename, 'file:', file, 'objectUrl:', objectUrl);
-        
-        const record = {
-          resumeId: row.resumeId,
-          fileData: file ? await file.arrayBuffer() : null, // Store as ArrayBuffer
-          fileType: file ? file.type : null,
-          canonicalText: row.canonicalText || '', // full normalized
-          meta: {
-            resumeId: row.resumeId,
-            filename: baseName(row.filename),
-            bytes: row.bytes || (file ? file.size : 0),
-            email: row.email || null,
-            cosine: row.cosine,
-            objectUrl
-          }
-        };
-        
-        await putResume(record);
-      }
-
-    // 5) Build candidates array with objectUrl for immediate use
-    state.candidates = (data.results || []).map(row => {
-      const file = fileMap.get(baseName(row.filename));
-      const objectUrl = file ? URL.createObjectURL(file) : '';
-      
-      return {
-        ...row,
-        objectUrl: objectUrl
-      };
-    });
-    
-         renderList(listEl, state.candidates, onSelectCandidate);
-    
-    // Update status with JD hash info if available
-    let statusMsg = `Processed ${state.candidates.length} candidate(s).`;
-    if (data.jdHash) {
-      statusMsg += ` JD linked ✓ (${data.jdHash})`;
-    }
-    setStatus(statusEl, statusMsg);
-  } catch (e) {
-    console.error(e);
-    setStatus(statusEl, e.message || 'Failed.');
-  } finally {
-    sendBtn.disabled = false;
-  }
-});
+// sendBtn.addEventListener('click', async () => {
+//   await processResumes();
+// });
 
 async function onSelectCandidate(e) {
   const rid = e.currentTarget.dataset.resumeId;
@@ -485,6 +434,99 @@ async function explainCandidateHandler(rec) {
     explainMd.textContent = error.message;
     explainMd.style.borderLeft = '4px solid #f44336';
     explainMd.title = `Error: ${error.message}`;
+  }
+}
+
+// Extract the resume processing logic into a reusable function
+async function processResumes() {
+  if (!selectedFiles.length) { 
+    setStatus(statusEl, 'Select PDFs first.'); 
+    return; 
+  }
+
+  // sendBtn.disabled = true; // Removed sendBtn
+  setStatus(statusEl, 'Zipping…');
+
+  try {
+    // 1) Build the zip in-browser (keep original basenames)
+    const zipBlob = await createZipFromFiles(selectedFiles);
+
+    // 2) Submit to /v1/bulk-zip (multipart) with JD
+    const jdText = jdTextEl.value.trim();
+    const jdHash = jdHashEl.value.trim();
+    
+    setStatus(statusEl, 'Uploading…');
+    const data = await bulkZipUpload(zipBlob, jdText, jdHash);
+
+    // Check if backend returned a JD hash from bulk processing
+    if (data.jdHash) {
+      state.jdHash = data.jdHash;
+      state.jdTextSnapshot = jdTextEl.value.trim();
+      // JD status is hidden in demo mode
+      
+      // Store JD hash in localStorage for persistence
+      try {
+        localStorage.setItem('matchagig_jdHash', data.jdHash);
+        localStorage.setItem('matchagig_jdTextSnapshot', state.jdTextSnapshot);
+      } catch (error) {
+        console.error('❌ Failed to store JD hash in localStorage:', error);
+      }
+    }
+
+    // 3) Build a quick lookup filename -> File for local preview storage
+    const fileMap = createFileMap(selectedFiles);
+
+    // 4) Persist PDFs + canonicalText in IDB by resumeId
+    for (const row of (data.results || [])) {
+      const file = fileMap.get(baseName(row.filename));
+      const objectUrl = file ? URL.createObjectURL(file) : '';
+      
+      console.log('Storing record for:', row.filename, 'file:', file, 'objectUrl:', objectUrl);
+      
+      const record = {
+        resumeId: row.resumeId,
+        fileData: file ? await file.arrayBuffer() : null, // Store as ArrayBuffer
+        fileType: file ? file.type : null,
+        canonicalText: row.canonicalText || '', // full normalized
+        meta: {
+          resumeId: row.resumeId,
+          filename: baseName(row.filename),
+          bytes: row.bytes || (file ? file.size : 0),
+          email: row.email || null,
+          cosine: row.cosine,
+          objectUrl
+        }
+      };
+      
+      await putResume(record);
+    }
+
+    // 5) Build candidates array with objectUrl for immediate use
+    state.candidates = (data.results || []).map(row => {
+      const file = fileMap.get(baseName(row.filename));
+      const objectUrl = file ? URL.createObjectURL(file) : '';
+      
+      return {
+        ...row,
+        objectUrl: objectUrl
+      };
+    });
+    
+    renderList(listEl, state.candidates, onSelectCandidate);
+    
+    // Update status with JD hash info if available
+    let statusMsg = `Processed ${state.candidates.length} candidate(s).`;
+    if (data.jdHash) {
+      statusMsg = `Successfully processed ${state.candidates.length} candidate(s).`;
+    }
+    setStatus(statusEl, statusMsg);
+    
+  } catch (e) {
+    console.error(e);
+    setStatus(statusEl, e.message || 'Failed.');
+    throw e; // Re-throw to be caught by the calling function
+  } finally {
+    // sendBtn.disabled = false; // Removed sendBtn
   }
 }
 
