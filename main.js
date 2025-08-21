@@ -313,6 +313,84 @@ if (document.readyState === 'loading') {
   setupChatEventListeners(state, chatLog, chatText, landingJdText);
 }
 
+// Check if we should skip the landing page and go straight to main interface
+async function checkAndSkipLanding() {
+  try {
+    // Check if we have stored data
+    const storedJdHash = localStorage.getItem('matchagig_jdHash');
+    const storedJdTextSnapshot = localStorage.getItem('matchagig_jdTextSnapshot');
+    const allRecords = await getAllResumes();
+    
+    if (storedJdHash && allRecords && allRecords.length > 0) {
+      console.log('🚀 Found existing data, skipping to main interface');
+      
+      // Restore state from localStorage
+      state.jdHash = storedJdHash;
+      state.jdTextSnapshot = storedJdTextSnapshot || '';
+      
+      // Try to extract job title from stored JD text
+      if (storedJdTextSnapshot) {
+        const lines = storedJdTextSnapshot.split('\n');
+        // Look for the job title line (usually after "About the job" or contains the role)
+        let jobTitle = '';
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (line && line !== 'About the job' && line.includes('Representative') || line.includes('Developer') || line.includes('Manager') || line.includes('Engineer')) {
+            jobTitle = line;
+            break;
+          }
+        }
+        
+        // If we found a job title, use it
+        if (jobTitle) {
+          state.jobTitle = jobTitle;
+          console.log('🏷️ Job title extracted from stored text:', jobTitle);
+          
+          // Update the job title display
+          const jobTitleDisplay = document.getElementById('jobTitleDisplay');
+          if (jobTitleDisplay) {
+            jobTitleDisplay.textContent = jobTitle;
+          }
+        } else {
+          // Fallback: use the first non-empty line that's not "About the job"
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line && line !== 'About the job') {
+              state.jobTitle = line;
+              console.log('🏷️ Using fallback job title from stored text:', line);
+              
+              // Update the job title display
+              const jobTitleDisplay = document.getElementById('jobTitleDisplay');
+              if (jobTitleDisplay) {
+                jobTitleDisplay.textContent = line;
+              }
+              break;
+            }
+          }
+        }
+      }
+      
+      // Hide landing page and show main interface
+      landingPage.style.display = 'none';
+      mainInterface.style.display = 'flex';
+      
+      // Load the stored data
+      await loadStoredCandidates();
+    } else {
+      console.log('📱 No existing data found, showing landing page');
+    }
+  } catch (error) {
+    console.error('❌ Error checking for existing data:', error);
+  }
+}
+
+// Call this function after DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', checkAndSkipLanding);
+} else {
+  checkAndSkipLanding();
+}
+
 // Add refresh button functionality
 // refreshBtn.addEventListener('click', () => {
 //   loadStoredCandidates();
