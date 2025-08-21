@@ -4,76 +4,8 @@
   <meta charset="utf-8" />
   <title>Bulk ZIP → /v1/bulk-zip (Demo)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- layout only -->
-  <style>
-    html, body { height: 100%; margin: 0; }
-    .app { display: grid; grid-template-columns: 320px 1fr 400px; height: 100vh; }
-    .left { padding: 8px; overflow: auto; }
-    .right { padding: 8px; overflow: auto; }
-    .chat { padding: 8px; overflow: auto; border-left: 1px solid #ddd; }
-    .row { display: flex; justify-content: space-between; gap: 8px; padding: 6px 4px; cursor: pointer; }
-    .row:hover { outline: 1px dotted #ccc; }
-    .toolbar { display: grid; gap: 8px; }
-    .list { margin-top: 12px; }
-    .pdf { width: 100%; height: 50vh; border: 1px solid #ddd; margin-bottom: 16px; }
-    #explainMd { 
-      background: #f5f5f5; 
-      padding: 12px; 
-      border: 1px solid #ddd; 
-      max-height: 40vh; 
-      overflow: auto; 
-      white-space: pre-wrap; 
-      font-family: monospace; 
-      font-size: 12px; 
-    }
-    #chatLog { 
-      max-height: 300px; 
-      overflow-y: auto; 
-      margin-bottom: 16px; 
-      border: 1px solid #ddd; 
-      padding: 8px; 
-      background: #f9f9f9; 
-    }
-    #chatLog .user { 
-      background: #e3f2fd; 
-      padding: 8px; 
-      margin: 4px 0; 
-      border-radius: 4px; 
-      font-weight: bold; 
-    }
-    #chatLog .assistant { 
-      background: #f1f8e9; 
-      padding: 8px; 
-      margin: 4px 0; 
-      border-radius: 4px; 
-      white-space: pre-wrap; 
-      font-family: monospace; 
-      font-size: 12px; 
-    }
-    #chatActions { 
-      display: grid; 
-      gap: 4px; 
-      margin-bottom: 16px; 
-    }
-    #chatActions button { 
-      padding: 8px; 
-      font-size: 12px; 
-      text-align: left; 
-    }
-    #chatInput { 
-      display: flex; 
-      gap: 8px; 
-      align-items: flex-start; 
-    }
-    #chatText { 
-      flex: 1; 
-      resize: vertical; 
-    }
-    #btnSend { 
-      padding: 8px 16px; 
-      white-space: nowrap; 
-    }
-  </style>
+  <!-- External CSS -->
+  <link rel="stylesheet" href="css/styles.css">
   <!-- JSZip in browser to make a zip from PDFs -->
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
