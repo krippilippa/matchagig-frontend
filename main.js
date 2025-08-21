@@ -762,13 +762,8 @@ async function loadExistingData() {
       state.jobTitle = 'No job title available';
     }
     
-    // Load stored candidates and auto-generate summaries
+    // Load basic candidate list (names/IDs only, no heavy data)
     await loadStoredCandidates();
-    
-    // Auto-generate summaries for top 5 candidates if we have JD hash
-    if (state.jdHash && state.candidates.length > 0) {
-      generateAutoSummaries(state.candidates);
-    }
     
   } catch (error) {
     console.error('❌ Error loading existing data:', error);

@@ -14,8 +14,6 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
     return;
   }
   
-  console.log('Setting up chat event listeners...');
-  
   const btnExplain = document.getElementById('btnExplain');
   const btnSend = document.getElementById('btnSend');
   const modeButtons = document.querySelectorAll('#chatActions [data-mode]');
@@ -87,7 +85,6 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
   
   // Mark as setup
   chatEventListenersSetup = true;
-  console.log('Chat event listeners setup complete');
 }
 
 export function appendMsg(chatLog, role, content) {
