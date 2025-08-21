@@ -6,7 +6,10 @@ import {
   getResume, 
   getAllResumes, 
   clearAllResumes,
-  updateResumeLLMResponse
+  updateResumeLLMResponse,
+  saveJDData,
+  loadJDData,
+  clearAllStorage
 } from './js/database.js';
 
 import { 
@@ -17,7 +20,10 @@ import {
 import { 
   setupChatEventListeners, 
   appendMsg, 
-  resetChatEventListeners 
+  resetChatEventListeners,
+  addMessageToCandidate,
+  getCandidateMessages,
+  loadChatHistoryForCandidate
 } from './js/chat.js';
 
 import { 
@@ -154,21 +160,8 @@ backToDemoBtn.addEventListener('click', async () => {
     // Clear IndexedDB
     await clearAllResumes();
     
-    // Clear localStorage
-    localStorage.removeItem('matchagig_jdHash');
-    localStorage.removeItem('matchagig_jdTextSnapshot');
-    localStorage.removeItem('matchagig_jobTitle'); // Clear stored job title
-    
-    // Clear all chat history
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('matchagig_chat_')) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach(key => localStorage.removeItem(key));
-    console.log('🗑️ Cleared chat history for all candidates');
+    // Clear all storage using consolidated function
+    await clearAllStorage();
     
     // Reset state
     state.candidates = [];
@@ -211,86 +204,7 @@ const state = {
   autoSummariesGenerated: false // Prevent duplicate auto-summary generation
 };
 
-// Function to save chat history for a specific candidate
-function saveChatHistory(candidateId, messages) {
-  try {
-    const chatKey = `matchagig_chat_${candidateId}`;
-    localStorage.setItem(chatKey, JSON.stringify(messages));
-    
-    // Debug: Log what's being saved
-    console.log('💾 Chat History Save:', {
-      candidateId,
-      messageCount: messages.length,
-      localStorageKey: chatKey,
-      existingKeys: Object.keys(localStorage).filter(k => k.startsWith('matchagig_chat_'))
-    });
-  } catch (error) {
-    console.error('❌ Failed to save chat history:', error);
-  }
-}
-
-// Function to load chat history for a specific candidate
-function loadChatHistory(candidateId) {
-  try {
-    const chatKey = `matchagig_chat_${candidateId}`;
-    const stored = localStorage.getItem(chatKey);
-    
-    // Debug: Log what's being loaded
-    console.log('📱 Chat History Load:', {
-      candidateId,
-      localStorageKey: chatKey,
-      found: !!stored,
-      messageCount: stored ? JSON.parse(stored).length : 0
-    });
-    
-    if (stored) {
-      const messages = JSON.parse(stored);
-      return messages;
-    }
-  } catch (error) {
-    console.error('❌ Failed to load chat history:', error);
-  }
-  return [];
-}
-
-// Function to clear chat history for a specific candidate
-function clearChatHistory(candidateId) {
-  try {
-    const chatKey = `matchagig_chat_${candidateId}`;
-    localStorage.removeItem(chatKey);
-    console.log('🗑️ Chat history cleared for candidate:', candidateId);
-  } catch (error) {
-    console.error('❌ Failed to clear chat history:', error);
-  }
-}
-
-// Function to get current candidate's messages
-function getCurrentCandidateMessages() {
-  if (!state.selectedCandidateId) return [];
-  if (!state.chatHistory[state.selectedCandidateId]) {
-    state.chatHistory[state.selectedCandidateId] = [];
-  }
-  return state.chatHistory[state.selectedCandidateId];
-}
-
-// Function to add message to specific candidate's history
-function addMessageToCandidate(candidateId, role, content) {
-  if (!state.chatHistory[candidateId]) {
-    state.chatHistory[candidateId] = [];
-  }
-  state.chatHistory[candidateId].push({ role, content });
-  
-  // Save to localStorage
-  saveChatHistory(candidateId, state.chatHistory[candidateId]);
-  
-  // If this is the currently selected candidate, also update the UI
-  if (candidateId === state.selectedCandidateId) {
-    appendMsg(chatLog, role, content);
-  }
-}
-
-// Make function available globally for chat.js
-window.addMessageToCandidate = addMessageToCandidate;
+// Chat history management is now handled by chat.js module
 
 // --- Event Listeners ---
 
@@ -315,40 +229,7 @@ if (jdHashEl.value.trim()) {
   // JD status is hidden in demo mode
 }
 
-// Add clear storage functionality
-// clearStorageBtn.addEventListener('click', async () => {
-//   if (confirm('⚠️ This will clear ALL stored data (candidates, PDFs, JD hash). Are you sure?')) {
-//     try {
-//       // Clear IndexedDB
-//       await clearAllResumes();
-      
-//       // Clear localStorage
-//       localStorage.removeItem('matchagig_jdHash');
-//       localStorage.removeItem('matchagig_jdTextSnapshot');
-      
-//       // Reset state
-//       state.jdHash = null;
-//       state.jdTextSnapshot = '';
-//       state.candidates = [];
-      
-//       // Clear UI
-//       clearUI(listEl, pdfFrame, viewerTitle, jdStatusEl, chatLog);
-      
-//       // Clear chat state
-//       state.messages = [];
-//       state.currentCandidate = null;
-      
-//       // Reset event listener flag so they can be setup again if needed
-//       resetChatEventListeners();
-      
-//       // Update status
-//       setStatus(statusEl, 'All storage cleared. Ready for fresh upload.');
-//     } catch (error) {
-//       console.error('❌ Error clearing storage:', error);
-//       setStatus(statusEl, 'Error clearing storage: ' + error.message);
-//     }
-//   }
-// });
+// Clear storage functionality is now handled by the clearAllStorage function in database.js
 
 // Load stored candidates from IndexedDB on page load
 async function loadStoredCandidates() {
@@ -364,24 +245,24 @@ async function loadStoredCandidates() {
       
       state.candidates = results;
       
-      // Restore JD hash from localStorage
+      // Restore JD data from storage
       try {
-        const storedJdHash = localStorage.getItem('matchagig_jdHash');
-        const storedJdTextSnapshot = localStorage.getItem('matchagig_jdTextSnapshot');
-        
-        if (storedJdHash) {
-          state.jdHash = storedJdHash;
-          state.jdTextSnapshot = storedJdTextSnapshot || '';
+        const jdData = loadJDData();
+        if (jdData.jdHash) {
+          state.jdHash = jdData.jdHash;
+          state.jdTextSnapshot = jdData.jdTextSnapshot || '';
+          state.jobTitle = jdData.jobTitle || '';
         }
       } catch (error) {
-        console.error('❌ Failed to restore JD hash from localStorage:', error);
+        console.error('❌ Failed to restore JD data from storage:', error);
       }
       
       // Load chat history for all candidates BEFORE generating auto-summaries
       for (const candidate of results) {
         const candidateId = candidate.resumeId;
-        const candidateChatHistory = loadChatHistory(candidateId);
+        const candidateChatHistory = loadChatHistoryForCandidate(candidateId);
         if (candidateChatHistory.length > 0) {
+          // Store in state for backward compatibility during transition
           state.chatHistory[candidateId] = candidateChatHistory;
           console.log('📱 Loaded chat history for', candidateId, ':', candidateChatHistory.length, 'messages');
         }
@@ -425,29 +306,29 @@ if (document.readyState === 'loading') {
   setupChatEventListeners(state, chatLog, chatText, landingJdText);
 }
 
-// Check if we should skip the landing page and go straight to main interface
-async function checkAndSkipLanding() {
-  try {
-    // Check if we have stored data
-    const storedJdHash = localStorage.getItem('matchagig_jdHash');
-    const storedJdTextSnapshot = localStorage.getItem('matchagig_jdTextSnapshot');
-    const allRecords = await getAllResumes();
-    
-    // Debug: Log what data is found
-    console.log('🔄 State Restoration Check:', {
-      hasJdHash: !!storedJdHash,
-      hasJdText: !!storedJdTextSnapshot,
-      hasRecords: !!allRecords,
-      recordCount: allRecords?.length || 0,
-      localStorageKeys: Object.keys(localStorage).filter(k => k.startsWith('matchagig'))
-    });
-    
-    if (storedJdHash && allRecords && allRecords.length > 0) {
-      console.log('🚀 Found existing data, skipping to main interface');
-      
-      // Restore state from localStorage
-      state.jdHash = storedJdHash;
-      state.jdTextSnapshot = storedJdTextSnapshot || '';
+    // Check if we should skip the landing page and go straight to main interface
+    async function checkAndSkipLanding() {
+      try {
+        // Check if we have stored data
+        const jdData = loadJDData();
+        const allRecords = await getAllResumes();
+        
+        // Debug: Log what data is found
+        console.log('🔄 State Restoration Check:', {
+          hasJdHash: !!jdData.jdHash,
+          hasJdText: !!jdData.jdTextSnapshot,
+          hasJobTitle: !!jdData.jobTitle,
+          hasRecords: !!allRecords,
+          recordCount: allRecords?.length || 0
+        });
+        
+        if (jdData.jdHash && allRecords && allRecords.length > 0) {
+          console.log('🚀 Found existing data, skipping to main interface');
+          
+          // Restore state from storage
+          state.jdHash = jdData.jdHash;
+          state.jdTextSnapshot = jdData.jdTextSnapshot || '';
+          state.jobTitle = jdData.jobTitle || '';
       
       // Restore job title
       if (storedJdTextSnapshot) {
@@ -513,10 +394,7 @@ if (document.readyState === 'loading') {
   checkAndSkipLanding();
 }
 
-// Add refresh button functionality
-// refreshBtn.addEventListener('click', () => {
-//   loadStoredCandidates();
-// });
+// Refresh functionality can be added here if needed
 
 let selectedFiles = [];  // File[]
 
@@ -525,9 +403,7 @@ pdfInput.addEventListener('change', (e) => {
   setStatus(statusEl, `${selectedFiles.length} PDF(s) ready`);
 });
 
-// sendBtn.addEventListener('click', async () => {
-//   await processResumes();
-// });
+// Manual send button functionality removed - now automatic
 
 async function onSelectCandidate(e) {
   const rid = e.currentTarget.dataset.resumeId;
@@ -553,12 +429,12 @@ async function onSelectCandidate(e) {
   state.currentCandidate = rec;
   state.selectedCandidateId = rid;
 
-  // Load chat history for this candidate
-  const candidateChatHistory = loadChatHistory(rid);
-  if (!state.chatHistory[rid]) {
-    state.chatHistory[rid] = [];
-  }
-  state.chatHistory[rid] = candidateChatHistory;
+        // Load chat history for this candidate
+      const candidateChatHistory = loadChatHistoryForCandidate(rid);
+      if (!state.chatHistory[rid]) {
+        state.chatHistory[rid] = [];
+      }
+      state.chatHistory[rid] = candidateChatHistory;
   
   // Debug: Log what chat history was loaded
   console.log('🔍 Individual candidate chat history loaded:', {
@@ -737,13 +613,12 @@ async function processResumes() {
       state.jdTextSnapshot = landingJdText.value.trim();
       // JD status is hidden in demo mode
       
-      // Store JD hash in localStorage for persistence
+      // Store JD data in storage
       try {
-        localStorage.setItem('matchagig_jdHash', data.jdHash);
-        localStorage.setItem('matchagig_jdTextSnapshot', state.jdTextSnapshot);
-        console.log('💾 JD hash stored in localStorage');
+        saveJDData(data.jdHash, state.jdTextSnapshot, state.jobTitle);
+        console.log('💾 JD data stored');
       } catch (error) {
-        console.error('❌ Failed to store JD hash in localStorage:', error);
+        console.error('❌ Failed to store JD data:', error);
       }
     } else {
       console.log('⚠️ No JD hash returned from backend');
@@ -876,44 +751,22 @@ async function generateAutoSummaries(candidates) {
   const topCandidates = candidates.slice(0, 5); // First 5 candidates
   console.log('🚀 Auto-generating summaries for top', topCandidates.length, 'candidates');
   
-  // Debug: Show what chat history is available
-  console.log('🔍 Available chat history:', {
-    totalCandidates: Object.keys(state.chatHistory).length,
-    candidatesWithHistory: Object.keys(state.chatHistory).filter(id => state.chatHistory[id].length > 0),
-    historyDetails: Object.entries(state.chatHistory).map(([id, messages]) => ({
-      candidateId: id,
-      messageCount: messages.length,
-      hasSummary: messages.some(msg => 
-        msg.role === 'assistant' && 
-        msg.content !== 'Generating initial assessment...' &&
-        msg.content !== '❌ Failed to generate assessment:' &&
-        (msg.content.includes('assessment') || 
-         msg.content.includes('summary') || 
-         msg.content.includes('fit') ||
-         msg.content.includes('Technical Sales Representative') ||
-         msg.content.includes('experience') ||
-         msg.content.includes('skills') ||
-         msg.content.includes('background'))
-      )
-    }))
-  });
-  
   // Set flag to prevent duplicate calls
   state.autoSummariesGenerated = true;
   
   for (const candidate of topCandidates) {
     const candidateId = candidate.resumeId;
     
-    // Check if this candidate already has a summary
-    const existingHistory = state.chatHistory[candidateId] || [];
+    // Check if this candidate already has a summary using the new chat system
+    const existingHistory = getCandidateMessages(candidateId);
     const hasSummary = existingHistory.some(msg => 
       msg.role === 'assistant' && 
-      msg.content !== 'Generating initial assessment...' && // Exclude loading state
-      msg.content !== '❌ Failed to generate assessment:' && // Exclude error state
+      msg.content !== 'Generating initial assessment...' &&
+      msg.content !== '❌ Failed to generate assessment:' &&
       (msg.content.includes('assessment') || 
-       msg.content.includes('summary') || 
+       msg.content.includes('summary') ||
        msg.content.includes('fit') ||
-       msg.content.includes('Technical Sales Representative') || // Look for actual content
+       msg.content.includes('Technical Sales Representative') ||
        msg.content.includes('experience') ||
        msg.content.includes('skills') ||
        msg.content.includes('background'))
@@ -943,7 +796,7 @@ async function generateAutoSummaries(candidates) {
         msg.content !== 'Generating initial assessment...' &&
         msg.content !== '❌ Failed to generate assessment:' &&
         (msg.content.includes('assessment') || 
-         msg.content.includes('summary') || 
+         msg.content.includes('summary') ||
          msg.content.includes('fit') ||
          msg.content.includes('Technical Sales Representative') ||
          msg.content.includes('experience') ||

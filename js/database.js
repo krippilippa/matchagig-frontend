@@ -111,3 +111,130 @@ export async function clearAllResumes() {
     throw error;
   }
 }
+
+// Chat history storage functions
+export function saveChatHistory(candidateId, messages) {
+  try {
+    const chatKey = `matchagig_chat_${candidateId}`;
+    localStorage.setItem(chatKey, JSON.stringify(messages));
+    
+    console.log('💾 Chat History Save:', {
+      candidateId,
+      messageCount: messages.length,
+      localStorageKey: chatKey
+    });
+  } catch (error) {
+    console.error('❌ Failed to save chat history:', error);
+    throw error;
+  }
+}
+
+export function loadChatHistory(candidateId) {
+  try {
+    const chatKey = `matchagig_chat_${candidateId}`;
+    const stored = localStorage.getItem(chatKey);
+    
+    console.log('📱 Chat History Load:', {
+      candidateId,
+      localStorageKey: chatKey,
+      found: !!stored,
+      messageCount: stored ? JSON.parse(stored).length : 0
+    });
+    
+    if (stored) {
+      const messages = JSON.parse(stored);
+      return messages;
+    }
+  } catch (error) {
+    console.error('❌ Failed to load chat history:', error);
+  }
+  return [];
+}
+
+export function clearChatHistory(candidateId) {
+  try {
+    const chatKey = `matchagig_chat_${candidateId}`;
+    localStorage.removeItem(chatKey);
+    console.log('🗑️ Chat history cleared for candidate:', candidateId);
+  } catch (error) {
+    console.error('❌ Failed to clear chat history:', error);
+    throw error;
+  }
+}
+
+export function clearAllChatHistory() {
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('matchagig_chat_')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    console.log('🗑️ Cleared chat history for all candidates');
+  } catch (error) {
+    console.error('❌ Failed to clear all chat history:', error);
+    throw error;
+  }
+}
+
+// JD data storage functions
+export function saveJDData(jdHash, jdTextSnapshot, jobTitle) {
+  try {
+    localStorage.setItem('matchagig_jdHash', jdHash);
+    localStorage.setItem('matchagig_jdTextSnapshot', jdTextSnapshot);
+    if (jobTitle) {
+      localStorage.setItem('matchagig_jobTitle', jobTitle);
+    }
+    console.log('💾 JD data saved:', { jdHash, hasJdText: !!jdTextSnapshot, jobTitle });
+  } catch (error) {
+    console.error('❌ Failed to save JD data:', error);
+    throw error;
+  }
+}
+
+export function loadJDData() {
+  try {
+    const jdHash = localStorage.getItem('matchagig_jdHash');
+    const jdTextSnapshot = localStorage.getItem('matchagig_jdTextSnapshot');
+    const jobTitle = localStorage.getItem('matchagig_jobTitle');
+    
+    console.log('📱 JD data loaded:', { 
+      hasJdHash: !!jdHash, 
+      hasJdText: !!jdTextSnapshot, 
+      hasJobTitle: !!jobTitle 
+    });
+    
+    return { jdHash, jdTextSnapshot, jobTitle };
+  } catch (error) {
+    console.error('❌ Failed to load JD data:', error);
+    return { jdHash: null, jdTextSnapshot: '', jobTitle: '' };
+  }
+}
+
+export function clearJDData() {
+  try {
+    localStorage.removeItem('matchagig_jdHash');
+    localStorage.removeItem('matchagig_jdTextSnapshot');
+    localStorage.removeItem('matchagig_jobTitle');
+    console.log('🗑️ JD data cleared');
+  } catch (error) {
+    console.error('❌ Failed to clear JD data:', error);
+    throw error;
+  }
+}
+
+export function clearAllStorage() {
+  try {
+    // Clear IndexedDB
+    clearAllResumes();
+    // Clear localStorage
+    clearAllChatHistory();
+    clearJDData();
+    console.log('🗑️ All storage cleared');
+  } catch (error) {
+    console.error('❌ Failed to clear all storage:', error);
+    throw error;
+  }
+}

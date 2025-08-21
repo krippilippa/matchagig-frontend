@@ -1,6 +1,7 @@
 // Chat functionality and event handling
 
 import { chatWithCandidate } from './api.js';
+import { saveChatHistory, loadChatHistory } from './database.js';
 
 // Flag to prevent multiple event listener setups
 let chatEventListenersSetup = false;
@@ -32,9 +33,7 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
       
       // Store user message in candidate's chat history
       if (state.currentCandidate && state.currentCandidate.resumeId) {
-        if (window.addMessageToCandidate) {
-          window.addMessageToCandidate(state.currentCandidate.resumeId, 'user', message);
-        }
+        addMessageToCandidate(state.currentCandidate.resumeId, 'user', message);
       }
       
       appendMsg(chatLog, 'user', message);
@@ -49,9 +48,7 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
       
       // Store user message in candidate's chat history
       if (state.currentCandidate && state.currentCandidate.resumeId) {
-        if (window.addMessageToCandidate) {
-          window.addMessageToCandidate(state.currentCandidate.resumeId, 'user', message);
-        }
+        addMessageToCandidate(state.currentCandidate.resumeId, 'user', message);
       }
       
       appendMsg(chatLog, 'user', message);
@@ -67,9 +64,7 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
       
       // Store user message in candidate's chat history
       if (state.currentCandidate && state.currentCandidate.resumeId) {
-        if (window.addMessageToCandidate) {
-          window.addMessageToCandidate(state.currentCandidate.resumeId, 'user', text);
-        }
+        addMessageToCandidate(state.currentCandidate.resumeId, 'user', text);
       }
       
       appendMsg(chatLog, 'user', text);
@@ -88,9 +83,7 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
         
         // Store user message in candidate's chat history
         if (state.currentCandidate && state.currentCandidate.resumeId) {
-          if (window.addMessageToCandidate) {
-            window.addMessageToCandidate(state.currentCandidate.resumeId, 'user', text);
-          }
+          addMessageToCandidate(state.currentCandidate.resumeId, 'user', text);
         }
         
         appendMsg(chatLog, 'user', text);
@@ -149,17 +142,14 @@ export async function callChat(state, chatLog, jdTextEl, mode) {
 
   const jdHash = state.jdHash;
   const resumeText = state.currentCandidate.canonicalText;
-  const messages = state.chatHistory[state.currentCandidate.resumeId] || [];
+  const messages = getCandidateMessages(state.currentCandidate.resumeId);
   
   try {
     const md = await chatWithCandidate(jdHash, resumeText, messages, mode);
     
     // Store the response in the correct candidate's chat history
     if (state.currentCandidate && state.currentCandidate.resumeId) {
-      // Import the function from main.js
-      if (window.addMessageToCandidate) {
-        window.addMessageToCandidate(state.currentCandidate.resumeId, 'assistant', md);
-      }
+      addMessageToCandidate(state.currentCandidate.resumeId, 'assistant', md);
     }
     
     appendMsg(chatLog, 'assistant', md);
@@ -168,9 +158,7 @@ export async function callChat(state, chatLog, jdTextEl, mode) {
     
     // Store the error in the correct candidate's chat history
     if (state.currentCandidate && state.currentCandidate.resumeId) {
-      if (window.addMessageToCandidate) {
-        window.addMessageToCandidate(state.currentCandidate.resumeId, 'assistant', errorMsg);
-      }
+      addMessageToCandidate(state.currentCandidate.resumeId, 'assistant', errorMsg);
     }
     
     appendMsg(chatLog, 'assistant', errorMsg);
@@ -179,4 +167,59 @@ export async function callChat(state, chatLog, jdTextEl, mode) {
 
 export function resetChatEventListeners() {
   chatEventListenersSetup = false;
+}
+
+// Chat history management functions
+export function addMessageToCandidate(candidateId, role, content) {
+  if (!candidateId) {
+    console.error('No candidate ID provided for message');
+    return;
+  }
+  
+  // Get or create chat history for this candidate
+  let messages = loadChatHistory(candidateId);
+  if (!messages) {
+    messages = [];
+  }
+  
+  // Add the new message
+  messages.push({ role, content });
+  
+  // Save to storage
+  try {
+    saveChatHistory(candidateId, messages);
+  } catch (error) {
+    console.error('Failed to save chat history:', error);
+  }
+  
+  return messages;
+}
+
+export function getCandidateMessages(candidateId) {
+  if (!candidateId) return [];
+  return loadChatHistory(candidateId);
+}
+
+export function clearCandidateChatHistory(candidateId) {
+  if (!candidateId) return;
+  
+  try {
+    saveChatHistory(candidateId, []);
+    console.log('Chat history cleared for candidate:', candidateId);
+  } catch (error) {
+    console.error('Failed to clear chat history:', error);
+  }
+}
+
+export function loadChatHistoryForCandidate(candidateId) {
+  if (!candidateId) return [];
+  
+  try {
+    const messages = loadChatHistory(candidateId);
+    console.log('Loaded chat history for candidate:', candidateId, 'Messages:', messages.length);
+    return messages;
+  } catch (error) {
+    console.error('Failed to load chat history for candidate:', candidateId, error);
+    return [];
+  }
 }
