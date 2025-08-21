@@ -377,6 +377,16 @@ async function loadStoredCandidates() {
         console.error('❌ Failed to restore JD hash from localStorage:', error);
       }
       
+      // Load chat history for all candidates BEFORE generating auto-summaries
+      for (const candidate of results) {
+        const candidateId = candidate.resumeId;
+        const candidateChatHistory = loadChatHistory(candidateId);
+        if (candidateChatHistory.length > 0) {
+          state.chatHistory[candidateId] = candidateChatHistory;
+          console.log('📱 Loaded chat history for', candidateId, ':', candidateChatHistory.length, 'messages');
+        }
+      }
+      
       // Make sure DOM is ready before rendering
       if (listEl && statusEl) {
         renderList(listEl, results, onSelectCandidate);
@@ -550,6 +560,14 @@ async function onSelectCandidate(e) {
   }
   state.chatHistory[rid] = candidateChatHistory;
   
+  // Debug: Log what chat history was loaded
+  console.log('🔍 Individual candidate chat history loaded:', {
+    candidateId: rid,
+    loadedMessages: candidateChatHistory.length,
+    totalStateHistory: Object.keys(state.chatHistory).length,
+    stateHistoryKeys: Object.keys(state.chatHistory)
+  });
+
   // Update the PDF viewer
   if (candidate.objectUrl) {
     // Debug: Log PDF loading details
@@ -857,6 +875,28 @@ async function generateAutoSummaries(candidates) {
   
   const topCandidates = candidates.slice(0, 5); // First 5 candidates
   console.log('🚀 Auto-generating summaries for top', topCandidates.length, 'candidates');
+  
+  // Debug: Show what chat history is available
+  console.log('🔍 Available chat history:', {
+    totalCandidates: Object.keys(state.chatHistory).length,
+    candidatesWithHistory: Object.keys(state.chatHistory).filter(id => state.chatHistory[id].length > 0),
+    historyDetails: Object.entries(state.chatHistory).map(([id, messages]) => ({
+      candidateId: id,
+      messageCount: messages.length,
+      hasSummary: messages.some(msg => 
+        msg.role === 'assistant' && 
+        msg.content !== 'Generating initial assessment...' &&
+        msg.content !== '❌ Failed to generate assessment:' &&
+        (msg.content.includes('assessment') || 
+         msg.content.includes('summary') || 
+         msg.content.includes('fit') ||
+         msg.content.includes('Technical Sales Representative') ||
+         msg.content.includes('experience') ||
+         msg.content.includes('skills') ||
+         msg.content.includes('background'))
+      )
+    }))
+  });
   
   // Set flag to prevent duplicate calls
   state.autoSummariesGenerated = true;
