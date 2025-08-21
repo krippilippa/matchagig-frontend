@@ -19,14 +19,6 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
   const btnSend = document.getElementById('btnSend');
   const modeButtons = document.querySelectorAll('#chatActions [data-mode]');
   
-  console.log('Chat elements found:', {
-    btnExplain: !!btnExplain,
-    btnSend: !!btnSend,
-    modeButtons: modeButtons.length,
-    chatLog: !!chatLog,
-    chatText: !!chatText
-  });
-  
   if (btnExplain) {
     btnExplain.addEventListener('click', () => {
       const message = 'Give me a succinct 30-second assessment of fit.';

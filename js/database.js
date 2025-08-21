@@ -118,11 +118,6 @@ export function saveChatHistory(candidateId, messages) {
     const chatKey = `matchagig_chat_${candidateId}`;
     localStorage.setItem(chatKey, JSON.stringify(messages));
     
-    console.log('💾 Chat History Save:', {
-      candidateId,
-      messageCount: messages.length,
-      localStorageKey: chatKey
-    });
   } catch (error) {
     console.error('❌ Failed to save chat history:', error);
     throw error;
@@ -133,13 +128,6 @@ export function loadChatHistory(candidateId) {
   try {
     const chatKey = `matchagig_chat_${candidateId}`;
     const stored = localStorage.getItem(chatKey);
-    
-    console.log('📱 Chat History Load:', {
-      candidateId,
-      localStorageKey: chatKey,
-      found: !!stored,
-      messageCount: stored ? JSON.parse(stored).length : 0
-    });
     
     if (stored) {
       const messages = JSON.parse(stored);
@@ -200,11 +188,6 @@ export function loadJDData() {
     const jdTextSnapshot = localStorage.getItem('matchagig_jdTextSnapshot');
     const jobTitle = localStorage.getItem('matchagig_jobTitle');
     
-    console.log('📱 JD data loaded:', { 
-      hasJdHash: !!jdHash, 
-      hasJdText: !!jdTextSnapshot, 
-      hasJobTitle: !!jobTitle 
-    });
     
     return { jdHash, jdTextSnapshot, jobTitle };
   } catch (error) {
@@ -218,7 +201,6 @@ export function clearJDData() {
     localStorage.removeItem('matchagig_jdHash');
     localStorage.removeItem('matchagig_jdTextSnapshot');
     localStorage.removeItem('matchagig_jobTitle');
-    console.log('🗑️ JD data cleared');
   } catch (error) {
     console.error('❌ Failed to clear JD data:', error);
     throw error;
