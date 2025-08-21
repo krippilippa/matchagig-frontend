@@ -24,7 +24,8 @@ import {
   resetChatEventListeners,
   addMessageToCandidate,
   getCandidateMessages,
-  loadChatHistoryForCandidate
+  loadChatHistoryForCandidate,
+  updateChatButtonStates
 } from './js/chat.js';
 
 import { 
@@ -81,7 +82,6 @@ const state = {
   jobTitle: '', // Added for job title
   chatHistory: {}, // Store chat history for each candidate: { candidateId: [messages] }
   selectedCandidateId: null, // Track which candidate is currently selected
-  autoSummariesGenerated: false, // Prevent duplicate auto-summary generation
   seededCandidates: new Set() // Track which candidates have been seeded for stateful chat
 };
 
@@ -207,11 +207,13 @@ async function handleBackToDemo() {
     state.selectedCandidateId = null;
     state.chatHistory = {};
     state.currentCandidate = null;
-    state.autoSummariesGenerated = false;
     state.seededCandidates.clear();
 
     // Clear UI
     clearUI(listEl, pdfFrame, viewerTitle, jdStatusEl, chatLog);
+    
+    // Update chat button states after clearing
+    updateChatButtonStates(state);
 
     // Switch back to landing page
     mainInterface.style.display = 'none';
@@ -391,9 +393,6 @@ async function processResumes() {
     // Update status with JD hash info if available
     if (state.jdHash) {
       setStatus(statusEl, `✅ ${state.candidates.length} candidates processed. JD hash: ${state.jdHash}`);
-      
-      // Auto-generate summaries for top 5 candidates
-      generateAutoSummaries(state.candidates);
     } else {
       setStatus(statusEl, `✅ ${state.candidates.length} candidates processed.`);
     }
@@ -470,6 +469,9 @@ async function onSelectCandidate(e) {
       addMessageToCandidate(rid, 'assistant', 'Context loaded. Ask me anything.');
       
       console.log('✅ Candidate thread seeded successfully');
+      
+      // Update button states now that candidate is seeded
+      updateChatButtonStates(state);
     } catch (error) {
       console.error('❌ Failed to seed candidate thread:', error);
       appendMsg(chatLog, 'assistant', `Failed to initialize chat: ${error.message}`);
@@ -492,6 +494,9 @@ async function onSelectCandidate(e) {
       appendMsg(chatLog, msg.role, msg.content);
     });
   }
+  
+  // Update chat button states after candidate selection
+  updateChatButtonStates(state);
 }
 
 // LLM explanation handling
@@ -555,6 +560,9 @@ async function explainCandidateHandler(rec) {
     } catch (error) {
       console.error('❌ Failed to store LLM response:', error);
     }
+    
+    // Update button states after LLM response
+    updateChatButtonStates(state);
   } catch (error) {
     console.error('❌ API call failed:', error);
     const errorMsg = '❌ Error: ' + error.message;
@@ -562,66 +570,15 @@ async function explainCandidateHandler(rec) {
     if (rec.resumeId === state.selectedCandidateId) {
       appendMsg(chatLog, 'assistant', errorMsg);
     }
+    
+    // Update button states even on error
+    updateChatButtonStates(state);
   }
 }
 
-// Auto-summary generation for NEW candidates
-async function generateAutoSummaries(candidates) {
-  console.log('🔧 generateAutoSummaries()');
-  
-  // Prevent duplicate generation
-  if (state.autoSummariesGenerated) {
-    console.log('🚫 Auto-summaries already generated, skipping...');
-    return;
-  }
-  
-  const topCandidates = candidates.slice(0, 5); // First 5 candidates
-  
-  // Set flag to prevent duplicate calls
-  state.autoSummariesGenerated = true;
-  
-  console.log(`📝 Generating auto-summaries for ${topCandidates.length} new candidates`);
-  
-  for (const candidate of topCandidates) {
-    const candidateId = candidate.resumeId;
-    
-    console.log('📝 Generating auto-summary for candidate:', candidateId);
-    
-    try {
-      // Get the full record from IndexedDB
-      const rec = await getResume(candidateId);
-      if (rec) {
-        // Generate the summary in the background
-        generateCandidateSummary(rec);
-      }
-    } catch (error) {
-      console.error('❌ Error generating auto-summary for candidate:', candidateId, error);
-    }
-  }
-}
 
-async function generateCandidateSummary(rec) {
-  console.log('🔧 generateCandidateSummary()');
-  try {
-    console.log('🔍 Generating summary for candidate:', rec.resumeId);
-    
-    // Call the LLM API - parameters should be (jdHash, resumeText)
-    const result = await explainCandidate(state.jdHash, rec.canonicalText);
-    
-    // Store the response in the correct candidate's chat history
-    addMessageToCandidate(rec.resumeId, 'assistant', result.markdown);
-    
-    // Store the LLM response in IndexedDB for caching
-    rec.llmResponse = result.markdown;
-    rec.llmResponseTimestamp = Date.now();
-    await putResume(rec);
-    
-    console.log('✅ Summary generated and stored for candidate:', rec.resumeId);
-  } catch (error) {
-    console.error('❌ Error generating summary for candidate:', rec.resumeId, error);
-    addMessageToCandidate(rec.resumeId, 'assistant', '❌ Failed to generate assessment: ' + error.message);
-  }
-}
+
+
 
 // Data loading and state restoration
 async function loadStoredCandidates() {
@@ -699,6 +656,9 @@ function setupMainInterface() {
   if (jobTitleDisplay) {
     jobTitleDisplay.addEventListener('click', handleJobTitleClick);
   }
+  
+  // Initialize chat button states
+  updateChatButtonStates(state);
 }
 
 // Setup landing page interface
@@ -753,6 +713,9 @@ async function loadExistingData() {
     
     // Load basic candidate list (names/IDs only, no heavy data)
     await loadStoredCandidates();
+    
+    // Update chat button states after loading data
+    updateChatButtonStates(state);
     
   } catch (error) {
     console.error('❌ Error loading existing data:', error);

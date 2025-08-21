@@ -116,19 +116,9 @@ export function appendMsg(chatLog, role, content) {
 
 export async function callChat(state, chatLog, jdTextEl, mode) {
   console.log('🔧 callChat()', mode);
-  if (!jdTextEl) {
-    console.error('JD text element not found');
-    appendMsg(chatLog, 'assistant', 'Error: JD text element not found');
-    return;
-  }
   
   if (!state.currentCandidate) {
     appendMsg(chatLog, 'assistant', 'Please select a candidate first');
-    return;
-  }
-
-  if (!state.jdHash) {
-    appendMsg(chatLog, 'assistant', 'Error: JD hash not found');
     return;
   }
 
@@ -177,6 +167,13 @@ export async function callChat(state, chatLog, jdTextEl, mode) {
   
   // Legacy chat method (fallback)
   console.log('🔄 Using legacy chat method for candidate:', candidateId);
+  
+  // For legacy chat, we need JD hash validation
+  if (!state.jdHash) {
+    appendMsg(chatLog, 'assistant', 'Error: JD hash not found for legacy chat');
+    return;
+  }
+  
   const jdHash = state.jdHash;
   const resumeText = state.currentCandidate.canonicalText;
   // Use existing messages from state if available, otherwise load from storage
@@ -280,4 +277,55 @@ export function getLastUserMessage(messages) {
   }
   
   return null;
+}
+
+// Update chat button states based on candidate seeding status
+export function updateChatButtonStates(state) {
+  console.log('🔧 updateChatButtonStates()');
+  
+  const btnSend = document.getElementById('btnSend');
+  const chatText = document.getElementById('chatText');
+  
+  if (!btnSend || !chatText) {
+    console.warn('⚠️ Chat elements not found for button state update');
+    return;
+  }
+  
+  // Check if we have a current candidate and if it's seeded
+  if (state.currentCandidate && state.currentCandidate.resumeId) {
+    const candidateId = state.currentCandidate.resumeId;
+    const isSeeded = state.seededCandidates && state.seededCandidates.has(candidateId);
+    
+    if (isSeeded) {
+      // Enable chat for seeded candidates
+      btnSend.disabled = false;
+      btnSend.style.opacity = '1';
+      btnSend.style.cursor = 'pointer';
+      chatText.disabled = false;
+      chatText.style.opacity = '1';
+      chatText.placeholder = 'Ask something...';
+      
+      console.log('✅ Chat enabled for seeded candidate:', candidateId);
+    } else {
+      // Disable chat for unseeded candidates
+      btnSend.disabled = true;
+      btnSend.style.opacity = '0.5';
+      btnSend.style.cursor = 'not-allowed';
+      chatText.disabled = true;
+      chatText.style.opacity = '0.5';
+      chatText.placeholder = 'Please select a candidate first to enable chat...';
+      
+      console.log('🚫 Chat disabled for unseeded candidate:', candidateId);
+    }
+  } else {
+    // No candidate selected
+    btnSend.disabled = true;
+    btnSend.style.opacity = '0.5';
+    btnSend.style.cursor = 'not-allowed';
+    chatText.disabled = true;
+    chatText.style.opacity = '0.5';
+    chatText.placeholder = 'Please select a candidate first...';
+    
+    console.log('🚫 Chat disabled - no candidate selected');
+  }
 }

@@ -274,6 +274,24 @@ html, body { height: 100%; margin: 0; }
   white-space: nowrap; 
 }
 
+/* Chat button states */
+#btnSend:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #ccc;
+}
+
+#btnSend:disabled:hover {
+  background-color: #ccc;
+}
+
+#chatText:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #f5f5f5;
+  color: #999;
+}
+
 .job-title-display {
   padding: 12px;
   background: #f8f9fa;
