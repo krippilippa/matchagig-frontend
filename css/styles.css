@@ -1,5 +1,123 @@
 html, body { height: 100%; margin: 0; }
-.app { display: grid; grid-template-columns: 320px 1fr 400px; height: 100vh; }
+
+/* Landing Page Styles */
+.landing-page {
+  width: 100%;
+  min-height: 100vh;
+  padding: 40px 20px;
+  background: #f5f5f5;
+}
+
+.landing-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.upload-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-bottom: 40px;
+}
+
+.upload-box, .jd-box {
+  background: white;
+  border: 1px solid #ddd;
+  padding: 30px;
+}
+
+.upload-box h3, .jd-box h3 {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+}
+
+.upload-area {
+  border: 2px dashed #ccc;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  margin-bottom: 15px;
+}
+
+.upload-area:hover {
+  border-color: #999;
+}
+
+.upload-text {
+  color: #666;
+  line-height: 1.5;
+}
+
+.upload-text strong {
+  color: #333;
+}
+
+.upload-tip {
+  font-size: 12px;
+  color: #888;
+  text-align: center;
+}
+
+.jd-box textarea {
+  width: 100%;
+  border: 1px solid #ddd;
+  padding: 15px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.run-match-btn {
+  width: 100%;
+  padding: 20px;
+  font-size: 18px;
+  font-weight: bold;
+  background: #333;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.run-match-btn:hover {
+  background: #555;
+}
+
+/* Main Interface Styles */
+.main-interface {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.interface-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid #ddd;
+  background: white;
+}
+
+.back-btn {
+  padding: 8px 16px;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.back-btn:hover {
+  background: #e5e5e5;
+}
+
+.interface-content {
+  display: grid;
+  grid-template-columns: 320px 1fr 400px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.app { height: 100%; }
 .left { padding: 8px; overflow: auto; }
 .right { padding: 8px; overflow: auto; }
 .chat { padding: 8px; overflow: auto; border-left: 1px solid #ddd; }

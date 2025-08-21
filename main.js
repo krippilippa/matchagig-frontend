@@ -33,6 +33,17 @@ import {
 } from './js/utils.js';
 
 const $ = (id) => document.getElementById(id);
+
+// Landing page elements
+const landingPage = $('landingPage');
+const mainInterface = $('mainInterface');
+const landingPdfInput = $('landingPdfInput');
+const landingJdText = $('landingJdText');
+const uploadArea = $('uploadArea');
+const runMatchBtn = $('runMatchBtn');
+const backToDemoBtn = $('backToDemoBtn');
+
+// Main interface elements
 const pdfInput   = $('pdfInput');
 const jdTextEl   = $('jdText');
 const jdHashEl   = $('jdHash');
@@ -48,6 +59,100 @@ const refreshBtn = $('refreshBtn');
 const clearStorageBtn = $('clearStorageBtn');
 const chatLog    = $('chatLog');
 const chatText   = $('chatText');
+
+// --- Landing Page Flow Control ---
+
+// Handle file upload area click
+uploadArea.addEventListener('click', () => {
+  landingPdfInput.click();
+});
+
+// Handle drag and drop
+uploadArea.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  uploadArea.style.borderColor = '#666';
+});
+
+uploadArea.addEventListener('dragleave', (e) => {
+  e.preventDefault();
+  uploadArea.style.borderColor = '#ccc';
+});
+
+uploadArea.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadArea.style.borderColor = '#ccc';
+  
+  const files = Array.from(e.dataTransfer.files).filter(f => /\.pdf$/i.test(f.name));
+  if (files.length > 0) {
+    landingPdfInput.files = e.dataTransfer.files;
+    updateUploadStatus(files.length);
+  }
+});
+
+// Handle file selection
+landingPdfInput.addEventListener('change', (e) => {
+  const files = Array.from(e.target.files || []).filter(f => /\.pdf$/i.test(f.name));
+  updateUploadStatus(files.length);
+});
+
+// Update upload area status
+function updateUploadStatus(fileCount) {
+  if (fileCount > 0) {
+    uploadArea.innerHTML = `<strong>${fileCount} PDF file(s) selected</strong><br>Ready to process`;
+    uploadArea.style.borderColor = '#4CAF50';
+  } else {
+    uploadArea.innerHTML = `<strong>Drag & drop résumés here</strong><br>or click to select files. We never save your files.`;
+    uploadArea.style.borderColor = '#ccc';
+  }
+}
+
+// Handle Run Match button
+runMatchBtn.addEventListener('click', () => {
+  const files = landingPdfInput.files;
+  const jdText = landingJdText.value.trim();
+  
+  if (!files || files.length === 0) {
+    alert('Please select at least one PDF file.');
+    return;
+  }
+  
+  if (!jdText) {
+    alert('Please enter a job description.');
+    return;
+  }
+  
+  // Transfer data to main interface
+  pdfInput.files = files;
+  jdTextEl.value = jdText;
+  
+  // Switch to main interface
+  landingPage.style.display = 'none';
+  mainInterface.style.display = 'flex';
+  
+  // Trigger the existing upload flow
+  selectedFiles = Array.from(files).filter(f => /\.pdf$/i.test(f.name));
+  setStatus(statusEl, `${selectedFiles.length} PDF(s) ready`);
+});
+
+// Handle Back to Demo button
+backToDemoBtn.addEventListener('click', () => {
+  // Clear the main interface
+  clearUI(listEl, pdfFrame, viewerTitle, explainMd, jdStatusEl, chatLog);
+  
+  // Reset state
+  state.candidates = [];
+  state.messages = [];
+  state.currentCandidate = null;
+  
+  // Switch back to landing page
+  mainInterface.style.display = 'none';
+  landingPage.style.display = 'block';
+  
+  // Reset landing page
+  landingPdfInput.value = '';
+  landingJdText.value = '';
+  updateUploadStatus(0);
+});
 
 // --- State Management ---
 const state = {
