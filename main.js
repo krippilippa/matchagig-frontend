@@ -427,14 +427,9 @@ async function onSelectCandidate(e) {
   state.currentCandidate = rec;
   state.selectedCandidateId = rid;
 
-  // Load chat history for this candidate (only if not already cached)
-  let candidateChatHistory;
-  if (!state.chatHistory[rid]) {
-    candidateChatHistory = loadChatHistoryForCandidate(rid);
-    state.chatHistory[rid] = candidateChatHistory;
-  } else {
-    candidateChatHistory = state.chatHistory[rid];
-  }
+  // Always load fresh chat history for the selected candidate
+  let candidateChatHistory = loadChatHistoryForCandidate(rid);
+  state.chatHistory[rid] = candidateChatHistory;  // Update cache with fresh data
 
   // Update the PDF viewer
   if (candidate.objectUrl) {    
