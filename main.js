@@ -53,6 +53,10 @@ const viewerTitle= $('viewerTitle');
 const jdStatusEl = $('jdStatus');
 const chatLog    = $('chatLog');
 const chatText   = $('chatText');
+const jobTitleDisplay = $('jobTitleDisplay');
+const jdTextDisplay = $('jdTextDisplay');
+const jdTextContent = $('jdTextContent');
+const updateJdBtn = $('updateJdBtn');
 
 // --- Landing Page Flow Control ---
 
@@ -438,6 +442,11 @@ async function onSelectCandidate(e) {
 
   viewerTitle.textContent = candidate.email || candidate.filename || candidate.resumeId;
   
+  // Switch back to PDF view when candidate is selected
+  jdTextDisplay.style.display = 'none';
+  pdfFrame.style.display = 'block';
+  updateJdBtn.style.display = 'none';
+  
   // Use the reconstructed objectUrl for PDF preview
   if (candidate.objectUrl) {
     console.log('📄 Setting PDF frame src to:', candidate.objectUrl);
@@ -650,6 +659,46 @@ async function processResumes() {
     // sendBtn.disabled = false; // Removed sendBtn
   }
 }
+
+// Add click handler for job title display to show JD text
+jobTitleDisplay.addEventListener('click', () => {
+  if (state.jdTextSnapshot && state.jdTextSnapshot.trim()) {
+    // Show JD text view
+    jdTextDisplay.style.display = 'block';
+    pdfFrame.style.display = 'none';
+    viewerTitle.textContent = 'Job Description';
+    updateJdBtn.style.display = 'block';
+    
+    // Populate the JD text content
+    jdTextContent.value = state.jdTextSnapshot;
+    
+    console.log('📄 Switched to JD text view');
+  } else {
+    console.log('⚠️ No JD text available to display');
+    alert('No job description text available to display.');
+  }
+});
+
+// Handle JD text changes to show/hide Update button
+jdTextContent.addEventListener('input', () => {
+  const currentText = jdTextContent.value.trim();
+  const originalText = state.jdTextSnapshot.trim();
+  
+  if (currentText !== originalText) {
+    updateJdBtn.disabled = false;
+    updateJdBtn.style.opacity = '1';
+  } else {
+    updateJdBtn.disabled = true;
+    updateJdBtn.style.opacity = '0.3';
+  }
+});
+
+// Handle Update button click
+updateJdBtn.addEventListener('click', () => {
+  if (!updateJdBtn.disabled) {
+    alert('Coming in next version!');
+  }
+});
 
 
 

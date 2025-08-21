@@ -57,7 +57,13 @@
         </aside>
 
         <main class="right">
-          <h3 id="viewerTitle">No candidate selected</h3>
+          <div class="viewer-header">
+            <h3 id="viewerTitle">No candidate selected</h3>
+            <button id="updateJdBtn" class="update-jd-btn" style="display: none;">Update</button>
+          </div>
+          <div id="jdTextDisplay" class="jd-text-display" style="display: none;">
+            <textarea id="jdTextContent" class="jd-text-content" placeholder="Job description text will appear here..."></textarea>
+          </div>
           <iframe id="pdfFrame" class="pdf"></iframe>
         </main>
 

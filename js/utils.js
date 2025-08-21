@@ -100,4 +100,19 @@ export function clearUI(listEl, pdfFrame, viewerTitle, jdStatusEl, chatLog) {
   if (jobTitleDisplay) {
     jobTitleDisplay.textContent = 'No job title available';
   }
+  
+  // Hide JD text display and show PDF frame
+  const jdTextDisplay = document.getElementById('jdTextDisplay');
+  if (jdTextDisplay) {
+    jdTextDisplay.style.display = 'none';
+  }
+  if (pdfFrame) {
+    pdfFrame.style.display = 'block';
+  }
+  
+  // Hide Update button
+  const updateJdBtn = document.getElementById('updateJdBtn');
+  if (updateJdBtn) {
+    updateJdBtn.style.display = 'none';
+  }
 }
