@@ -1,6 +1,6 @@
 // Chat functionality and event handling
 
-import { chatWithCandidate } from './api.js';
+import { chatWithCandidate, askCandidate } from './api.js';
 import { saveChatHistory, loadChatHistory } from './database.js';
 
 // Flag to prevent multiple event listener setups
@@ -59,7 +59,7 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
       }
       
       appendMsg(chatLog, 'user', text);
-      callChat(state, chatLog, jdTextEl); // general freeform
+      callChat(state, chatLog, jdTextEl, text); // Pass text as mode for freeform
     });
   }
   
@@ -78,7 +78,7 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
         }
         
         appendMsg(chatLog, 'user', text);
-        callChat(state, chatLog, jdTextEl); // general freeform
+        callChat(state, chatLog, jdTextEl, text); // Pass text as mode for freeform
       }
     });
   }
@@ -128,10 +128,55 @@ export async function callChat(state, chatLog, jdTextEl, mode) {
   }
 
   if (!state.jdHash) {
-    appendMsg(chatLog, 'assistant', 'Please set a JD hash first');
+    appendMsg(chatLog, 'assistant', 'Error: JD hash not found');
     return;
   }
 
+  const candidateId = state.currentCandidate.resumeId;
+  
+  // Check if this candidate has been seeded for stateful chat
+  if (state.seededCandidates && state.seededCandidates.has(candidateId)) {
+    try {
+      console.log('🔄 Using stateful chat for candidate:', candidateId);
+      console.log('🔄 Seeded candidates set:', Array.from(state.seededCandidates));
+      
+      // For stateful chat, we need to get the user message from the current input
+      // This will be passed as the mode parameter for freeform text, or we can get it from the last message
+      let userMessage;
+      
+      if (mode && mode !== 'interview_questions' && mode !== 'email_candidate' && mode !== 'email_hiring_manager') {
+        // This is freeform text from the user
+        userMessage = mode;
+      } else {
+        // For predefined modes, we need to get the last user message from chat history
+        userMessage = getLastUserMessage(state.chatHistory[candidateId]);
+      }
+      
+      console.log('🔄 User message for stateful chat:', userMessage);
+      
+      if (!userMessage) {
+        appendMsg(chatLog, 'assistant', 'Error: No user message found for stateful chat');
+        return;
+      }
+      
+      // Use the new stateful chat API
+      const { text: md } = await askCandidate(candidateId, userMessage);
+      
+      // Store the response in the correct candidate's chat history
+      if (state.currentCandidate && state.currentCandidate.resumeId) {
+        addMessageToCandidate(state.currentCandidate.resumeId, 'assistant', md);
+      }
+      
+      appendMsg(chatLog, 'assistant', md);
+      return;
+    } catch (error) {
+      console.error('❌ Stateful chat failed, falling back to legacy:', error);
+      // Fall back to legacy method
+    }
+  }
+  
+  // Legacy chat method (fallback)
+  console.log('🔄 Using legacy chat method for candidate:', candidateId);
   const jdHash = state.jdHash;
   const resumeText = state.currentCandidate.canonicalText;
   // Use existing messages from state if available, otherwise load from storage
@@ -221,4 +266,18 @@ export function loadChatHistoryForCandidate(candidateId) {
     console.error('Failed to load chat history for candidate:', candidateId, error);
     return [];
   }
+}
+
+// Helper function to get the last user message from chat history
+export function getLastUserMessage(messages) {
+  if (!messages || messages.length === 0) return null;
+  
+  // Find the last user message (going backwards through the array)
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') {
+      return messages[i].content;
+    }
+  }
+  
+  return null;
 }

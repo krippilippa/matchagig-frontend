@@ -14,7 +14,8 @@ import {
 
 import { 
   bulkZipUpload, 
-  explainCandidate 
+  explainCandidate,
+  seedCandidateThread
 } from './js/api.js';
 
 import { 
@@ -80,7 +81,8 @@ const state = {
   jobTitle: '', // Added for job title
   chatHistory: {}, // Store chat history for each candidate: { candidateId: [messages] }
   selectedCandidateId: null, // Track which candidate is currently selected
-  autoSummariesGenerated: false // Prevent duplicate auto-summary generation
+  autoSummariesGenerated: false, // Prevent duplicate auto-summary generation
+  seededCandidates: new Set() // Track which candidates have been seeded for stateful chat
 };
 
 let selectedFiles = [];  // File[]
@@ -206,6 +208,7 @@ async function handleBackToDemo() {
     state.chatHistory = {};
     state.currentCandidate = null;
     state.autoSummariesGenerated = false;
+    state.seededCandidates.clear();
 
     // Clear UI
     clearUI(listEl, pdfFrame, viewerTitle, jdStatusEl, chatLog);
@@ -449,18 +452,45 @@ async function onSelectCandidate(e) {
   // Clear chat display and restore this candidate's chat history
   chatLog.innerHTML = '';
   
+  // Seed the candidate thread if not already done
+  if (!state.seededCandidates.has(rid)) {
+    try {
+      console.log('🌱 Seeding candidate thread for:', rid);
+      console.log('🌱 JD Hash:', state.jdHash);
+      console.log('🌱 Resume text length:', rec.canonicalText?.length);
+      appendMsg(chatLog, 'assistant', 'Initializing chat context...');
+      
+      const seedResult = await seedCandidateThread(rid, state.jdHash, rec.canonicalText);
+      console.log('🌱 Seed result:', seedResult);
+      
+      state.seededCandidates.add(rid);
+      
+      // Add context loaded message
+      appendMsg(chatLog, 'assistant', 'Context loaded. Ask me anything.');
+      addMessageToCandidate(rid, 'assistant', 'Context loaded. Ask me anything.');
+      
+      console.log('✅ Candidate thread seeded successfully');
+    } catch (error) {
+      console.error('❌ Failed to seed candidate thread:', error);
+      appendMsg(chatLog, 'assistant', `Failed to initialize chat: ${error.message}`);
+      addMessageToCandidate(rid, 'assistant', `Failed to initialize chat: ${error.message}`);
+      
+      // Fall back to old method
+      if (candidateChatHistory.length === 0) {
+        addMessageToCandidate(rid, 'assistant', 'Generating initial assessment...');
+        appendMsg(chatLog, 'assistant', 'Generating initial assessment...');
+        await explainCandidateHandler(rec);
+      }
+    }
+  } else {
+    console.log('✅ Candidate thread already seeded for:', rid);
+  }
+  
   // Restore chat history if it exists
   if (candidateChatHistory.length > 0) {
     candidateChatHistory.forEach(msg => {
       appendMsg(chatLog, msg.role, msg.content);
     });
-  } else {
-    // Start fresh conversation with initial assessment
-    addMessageToCandidate(rid, 'assistant', 'Generating initial assessment...');
-    appendMsg(chatLog, 'assistant', 'Generating initial assessment...');
-    
-    // Trigger LLM explanation
-    await explainCandidateHandler(rec);
   }
 }
 

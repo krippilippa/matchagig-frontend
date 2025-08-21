@@ -107,3 +107,38 @@ export async function chatWithCandidate(jdHash, resumeText, messages, mode) {
   
   return await res.text();
 }
+
+// New stateful chat API functions
+export async function seedCandidateThread(candidateId, jdHash, resumeText) {
+  console.log('🔧 seedCandidateThread()', candidateId, jdHash, resumeText?.length);
+  
+  const r = await fetch('http://localhost:8787/v1/chat/seed', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ candidateId, jdHash, resumeText })
+  });
+  
+  if (!r.ok) {
+    const errorData = await r.json().catch(() => ({}));
+    throw new Error(errorData?.message || `Seed failed: ${r.status}`);
+  }
+  
+  return r.json(); // { ok: true, previousResponseId }
+}
+
+export async function askCandidate(candidateId, text) {
+  console.log('🔧 askCandidate()', candidateId, text?.length);
+  
+  const r = await fetch('http://localhost:8787/v1/chat/ask', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ candidateId, text })
+  });
+  
+  if (!r.ok) {
+    const e = await r.json().catch(() => ({}));
+    throw new Error(e?.message || `Ask failed: ${r.status}`);
+  }
+  
+  return r.json(); // { text, previousResponseId }
+}
