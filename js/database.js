@@ -5,6 +5,7 @@ const DB_VERSION = 1;
 const STORE = 'resumes';
 
 export function openDB() {
+  console.log('🔧 openDB()');
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
@@ -19,6 +20,7 @@ export function openDB() {
 }
 
 export async function putResume(record) {
+  console.log('🔧 putResume()', record.resumeId);
   try {
     const db = await openDB();
     return new Promise((resolve, reject) => {
@@ -37,6 +39,7 @@ export async function putResume(record) {
 }
 
 export async function updateResumeLLMResponse(resumeId, llmResponse) {
+  console.log('🔧 updateResumeLLMResponse()', resumeId);
   try {
     const db = await openDB();
     return new Promise((resolve, reject) => {
@@ -70,6 +73,7 @@ export async function updateResumeLLMResponse(resumeId, llmResponse) {
 }
 
 export async function getResume(resumeId) {
+  console.log('🔧 getResume()', resumeId);
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readonly');
@@ -80,6 +84,7 @@ export async function getResume(resumeId) {
 }
 
 export async function getAllResumes() {
+  console.log('🔧 getAllResumes()');
   try {
     const db = await openDB();
     
@@ -101,6 +106,7 @@ export async function getAllResumes() {
 }
 
 export async function clearAllResumes() {
+  console.log('🔧 clearAllResumes()');
   try {
     const db = await openDB();
     const tx = db.transaction(STORE, 'readwrite');
@@ -114,6 +120,7 @@ export async function clearAllResumes() {
 
 // Chat history storage functions
 export function saveChatHistory(candidateId, messages) {
+  console.log('🔧 saveChatHistory()', candidateId, messages.length);
   try {
     const chatKey = `matchagig_chat_${candidateId}`;
     localStorage.setItem(chatKey, JSON.stringify(messages));
@@ -125,6 +132,7 @@ export function saveChatHistory(candidateId, messages) {
 }
 
 export function loadChatHistory(candidateId) {
+  console.log('🔧 loadChatHistory()', candidateId);
   try {
     const chatKey = `matchagig_chat_${candidateId}`;
     const stored = localStorage.getItem(chatKey);
@@ -140,6 +148,7 @@ export function loadChatHistory(candidateId) {
 }
 
 export function clearChatHistory(candidateId) {
+  console.log('🔧 clearChatHistory()', candidateId);
   try {
     const chatKey = `matchagig_chat_${candidateId}`;
     localStorage.removeItem(chatKey);
@@ -151,6 +160,7 @@ export function clearChatHistory(candidateId) {
 }
 
 export function clearAllChatHistory() {
+  console.log('🔧 clearAllChatHistory()');
   try {
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -169,6 +179,7 @@ export function clearAllChatHistory() {
 
 // JD data storage functions
 export function saveJDData(jdHash, jdTextSnapshot, jobTitle) {
+  console.log('🔧 saveJDData()', jdHash, !!jdTextSnapshot, !!jobTitle);
   try {
     localStorage.setItem('matchagig_jdHash', jdHash);
     localStorage.setItem('matchagig_jdTextSnapshot', jdTextSnapshot);
@@ -183,6 +194,7 @@ export function saveJDData(jdHash, jdTextSnapshot, jobTitle) {
 }
 
 export function loadJDData() {
+  console.log('🔧 loadJDData()');
   try {
     const jdHash = localStorage.getItem('matchagig_jdHash');
     const jdTextSnapshot = localStorage.getItem('matchagig_jdTextSnapshot');
@@ -197,6 +209,7 @@ export function loadJDData() {
 }
 
 export function clearJDData() {
+  console.log('🔧 clearJDData()');
   try {
     localStorage.removeItem('matchagig_jdHash');
     localStorage.removeItem('matchagig_jdTextSnapshot');
@@ -208,6 +221,7 @@ export function clearJDData() {
 }
 
 export function clearAllStorage() {
+  console.log('🔧 clearAllStorage()');
   try {
     // Clear IndexedDB
     clearAllResumes();

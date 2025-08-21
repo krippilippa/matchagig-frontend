@@ -7,6 +7,7 @@ import { saveChatHistory, loadChatHistory } from './database.js';
 let chatEventListenersSetup = false;
 
 export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
+  console.log('🔧 setupChatEventListeners()');
   // Prevent multiple setups
   if (chatEventListenersSetup) {
     console.log('Chat event listeners already setup, skipping...');
@@ -90,6 +91,7 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
 }
 
 export function appendMsg(chatLog, role, content) {
+  console.log('🔧 appendMsg()', role);
   if (!chatLog) {
     console.error('Chat log element not found');
     return;
@@ -116,6 +118,7 @@ export function appendMsg(chatLog, role, content) {
 }
 
 export async function callChat(state, chatLog, jdTextEl, mode) {
+  console.log('🔧 callChat()', mode);
   if (!jdTextEl) {
     console.error('JD text element not found');
     appendMsg(chatLog, 'assistant', 'Error: JD text element not found');
@@ -134,7 +137,8 @@ export async function callChat(state, chatLog, jdTextEl, mode) {
 
   const jdHash = state.jdHash;
   const resumeText = state.currentCandidate.canonicalText;
-  const messages = getCandidateMessages(state.currentCandidate.resumeId);
+  // Use existing messages from state if available, otherwise load from storage
+  const messages = getCandidateMessages(state.currentCandidate.resumeId, state.chatHistory[state.currentCandidate.resumeId]);
   
   try {
     const md = await chatWithCandidate(jdHash, resumeText, messages, mode);
@@ -158,11 +162,13 @@ export async function callChat(state, chatLog, jdTextEl, mode) {
 }
 
 export function resetChatEventListeners() {
+  console.log('🔧 resetChatEventListeners()');
   chatEventListenersSetup = false;
 }
 
 // Chat history management functions
 export function addMessageToCandidate(candidateId, role, content) {
+  console.log('🔧 addMessageToCandidate()', candidateId, role);
   if (!candidateId) {
     console.error('No candidate ID provided for message');
     return;
@@ -187,12 +193,15 @@ export function addMessageToCandidate(candidateId, role, content) {
   return messages;
 }
 
-export function getCandidateMessages(candidateId) {
+export function getCandidateMessages(candidateId, existingMessages = null) {
+  console.log('🔧 getCandidateMessages()', candidateId, !!existingMessages);
   if (!candidateId) return [];
+  if (existingMessages) return existingMessages;
   return loadChatHistory(candidateId);
 }
 
 export function clearCandidateChatHistory(candidateId) {
+  console.log('🔧 clearCandidateChatHistory()', candidateId);
   if (!candidateId) return;
   
   try {
@@ -204,6 +213,7 @@ export function clearCandidateChatHistory(candidateId) {
 }
 
 export function loadChatHistoryForCandidate(candidateId) {
+  console.log('🔧 loadChatHistoryForCandidate()', candidateId);
   if (!candidateId) return [];
   
   try {

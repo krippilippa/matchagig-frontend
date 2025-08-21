@@ -90,6 +90,7 @@ let selectedFiles = [];  // File[]
 // ============================================================================
 
 function setupEventListeners() {
+  console.log('🔧 setupEventListeners()');
   // Landing page events
   uploadArea.addEventListener('click', handleUploadClick);
   uploadArea.addEventListener('dragover', handleDragOver);
@@ -113,20 +114,24 @@ function setupEventListeners() {
 
 // Landing page event handlers
 function handleUploadClick() {
+  console.log('🔧 handleUploadClick()');
   landingPdfInput.click();
 }
 
 function handleDragOver(e) {
+  console.log('🔧 handleDragOver()');
   e.preventDefault();
   uploadArea.style.borderColor = '#666';
 }
 
 function handleDragLeave(e) {
+  console.log('🔧 handleDragLeave()');
   e.preventDefault();
   uploadArea.style.borderColor = '#ccc';
 }
 
 function handleFileDrop(e) {
+  console.log('🔧 handleFileDrop()');
   e.preventDefault();
   uploadArea.style.borderColor = '#ccc';
   
@@ -138,11 +143,13 @@ function handleFileDrop(e) {
 }
 
 function handleFileSelect(e) {
+  console.log('🔧 handleFileSelect()');
   const files = Array.from(e.target.files || []).filter(f => /\.pdf$/i.test(f.name));
   updateUploadStatus(files.length);
 }
 
 async function handleRunMatch() {
+  console.log('🔧 handleRunMatch()');
   const files = landingPdfInput.files;
   const jdText = landingJdText.value.trim();
   
@@ -185,6 +192,7 @@ async function handleRunMatch() {
 }
 
 async function handleBackToDemo() {
+  console.log('🔧 handleBackToDemo()');
   try {
     // Clear all storage using consolidated function
     await clearAllStorage();
@@ -220,11 +228,13 @@ async function handleBackToDemo() {
 
 // Main interface event handlers
 function handlePdfInputChange(e) {
+  console.log('🔧 handlePdfInputChange()');
   selectedFiles = Array.from(e.target.files || []).filter(f => /\.pdf$/i.test(f.name));
   setStatus(statusEl, `${selectedFiles.length} PDF(s) ready`);
 }
 
 function handleJdHashInput() {
+  console.log('🔧 handleJdHashInput()');
   const hash = jdHashEl.value.trim();
   if (hash) {
     state.jdHash = hash;
@@ -236,6 +246,7 @@ function handleJdHashInput() {
 }
 
 function handleJobTitleClick() {
+  console.log('🔧 handleJobTitleClick()');
   if (state.jdTextSnapshot && state.jdTextSnapshot.trim()) {
     // Show JD text view
     jdTextDisplay.style.display = 'block';
@@ -252,6 +263,7 @@ function handleJobTitleClick() {
 }
 
 function handleJdTextChange() {
+  console.log('🔧 handleJdTextChange()');
   const currentText = jdTextContent.value.trim();
   const originalText = state.jdTextSnapshot.trim();
   
@@ -265,6 +277,7 @@ function handleJdTextChange() {
 }
 
 function handleUpdateJdClick() {
+  console.log('🔧 handleUpdateJdClick()');
   if (!updateJdBtn.disabled) {
     alert('Coming in next version!');
   }
@@ -276,6 +289,7 @@ function handleUpdateJdClick() {
 
 // Upload status management
 function updateUploadStatus(fileCount) {
+  console.log('🔧 updateUploadStatus()', fileCount);
   if (fileCount > 0) {
     uploadArea.innerHTML = `<strong>${fileCount} PDF file(s) selected</strong><br>Ready to process`;
     uploadArea.style.borderColor = '#4CAF50';
@@ -287,6 +301,7 @@ function updateUploadStatus(fileCount) {
 
 // Resume processing
 async function processResumes() {
+  console.log('🔧 processResumes()');
   if (!selectedFiles.length) { 
     setStatus(statusEl, 'Select PDFs first.'); 
     return; 
@@ -387,6 +402,7 @@ async function processResumes() {
 
 // Candidate selection and management
 async function onSelectCandidate(e) {
+  console.log('🔧 onSelectCandidate()');
   const rid = e.currentTarget.dataset.resumeId;
   
   // Find the candidate in our reconstructed state
@@ -409,12 +425,14 @@ async function onSelectCandidate(e) {
   state.currentCandidate = rec;
   state.selectedCandidateId = rid;
 
-  // Load chat history for this candidate
-  const candidateChatHistory = loadChatHistoryForCandidate(rid);
+  // Load chat history for this candidate (only if not already cached)
+  let candidateChatHistory;
   if (!state.chatHistory[rid]) {
-    state.chatHistory[rid] = [];
+    candidateChatHistory = loadChatHistoryForCandidate(rid);
+    state.chatHistory[rid] = candidateChatHistory;
+  } else {
+    candidateChatHistory = state.chatHistory[rid];
   }
-  state.chatHistory[rid] = candidateChatHistory;
 
   // Update the PDF viewer
   if (candidate.objectUrl) {    
@@ -451,6 +469,7 @@ async function onSelectCandidate(e) {
 
 // LLM explanation handling
 async function explainCandidateHandler(rec) {
+  console.log('🔧 explainCandidateHandler()');
   // Check if we have a cached LLM response
   if (rec.llmResponse && rec.llmResponseTimestamp) {
     const age = Date.now() - rec.llmResponseTimestamp;
@@ -521,6 +540,7 @@ async function explainCandidateHandler(rec) {
 
 // Auto-summary generation
 async function generateAutoSummaries(candidates) {
+  console.log('🔧 generateAutoSummaries()');
   // Prevent duplicate generation
   if (state.autoSummariesGenerated) {
     console.log('🚫 Auto-summaries already generated, skipping...');
@@ -592,6 +612,7 @@ async function generateAutoSummaries(candidates) {
 }
 
 async function generateCandidateSummary(rec) {
+  console.log('🔧 generateCandidateSummary()');
   try {
     console.log('🔍 Generating summary for candidate:', rec.resumeId);
     
@@ -615,6 +636,7 @@ async function generateCandidateSummary(rec) {
 
 // Data loading and state restoration
 async function loadStoredCandidates() {
+  console.log('🔧 loadStoredCandidates()');
   try {
     const allRecords = await getAllResumes();
     
@@ -627,47 +649,17 @@ async function loadStoredCandidates() {
       
       state.candidates = results;
       
-      // Restore JD data from storage
-      try {
-        const jdData = loadJDData();
-        if (jdData.jdHash) {
-          state.jdHash = jdData.jdHash;
-          state.jdTextSnapshot = jdData.jdTextSnapshot || '';
-          state.jobTitle = jdData.jobTitle || '';
-        }
-      } catch (error) {
-        console.error('❌ Failed to restore JD data from storage:', error);
-      }
-      
-      // Load chat history for all candidates BEFORE generating auto-summaries
-      for (const candidate of results) {
-        const candidateId = candidate.resumeId;
-        const candidateChatHistory = loadChatHistoryForCandidate(candidateId);
-        if (candidateChatHistory.length > 0) {
-          // Store in state for backward compatibility during transition
-          state.chatHistory[candidateId] = candidateChatHistory;
-          //console.log('📱 Loaded chat history for', candidateId, ':', candidateChatHistory.length, 'messages');
-        }
-      }
+      // Don't load chat history upfront - will load on-demand when candidates are selected
+      // This avoids unnecessary loading and improves app startup performance
       
       // Make sure DOM is ready before rendering
       if (listEl && statusEl) {
         renderList(listEl, results, onSelectCandidate);
         setStatus(statusEl, `Loaded ${results.length} stored candidate(s).`);
         
-        // Check if we have a stored JD hash
-        if (state.jdHash) {
-          // JD status is hidden in demo mode
-        }
-        
         // Initialize chat
         chatLog.innerHTML = '';
         state.currentCandidate = null;
-        
-        // Auto-generate summaries for top 5 candidates
-        if (state.jdHash && results.length > 0) {
-          generateAutoSummaries(results);
-        }
       } else {
         setTimeout(loadStoredCandidates, 100);
       }
@@ -677,97 +669,125 @@ async function loadStoredCandidates() {
   }
 }
 
-async function checkAndSkipLanding() {
-  try {
-    // Check if we have stored data
-    const jdData = loadJDData();
-    const allRecords = await getAllResumes();
-    
-    // console.log('🔄 State Restoration Check:', {
-    //   hasJdHash: !!jdData.jdHash,
-    //   hasJdText: !!jdData.jdTextSnapshot,
-    //   hasJobTitle: !!jdData.jobTitle,
-    //   hasRecords: !!allRecords,
-    //   recordCount: allRecords?.length || 0
-    // });
-    
-    if (jdData.jdHash && allRecords && allRecords.length > 0) {
-      //console.log('🚀 Found existing data, skipping to main interface');
-      
-      // Restore state from storage
-      state.jdHash = jdData.jdHash;
-      state.jdTextSnapshot = jdData.jdTextSnapshot || '';
-      state.jobTitle = jdData.jobTitle || '';
-      
-      // Restore job title
-      if (jdData.jdTextSnapshot) {
-        const lines = jdData.jdTextSnapshot.split('\n');
-        // Look for the job title line (usually after "About the job" or contains the role)
-        let jobTitle = '';
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (line && line !== 'About the job' && (line.includes('Representative') || line.includes('Developer') || line.includes('Manager') || line.includes('Engineer') || line.includes('Specialist') || line.includes('Analyst') || line.includes('Consultant'))) {
-            jobTitle = line;
-            break;
-          }
-        }
-        
-        // If we found a job title, use it
-        if (jobTitle) {
-          state.jobTitle = jobTitle;
-          const jobTitleDisplay = document.getElementById('jobTitleDisplay');
-          if (jobTitleDisplay) {
-            jobTitleDisplay.textContent = jobTitle;
-          }
-        } else {
-          state.jobTitle = 'No job title available';
-        }
-      } else {
-        state.jobTitle = 'No job title available';
-      }
-
-      // Switch to main interface
-      landingPage.style.display = 'none';
-      mainInterface.style.display = 'flex';
-      
-      // Re-render candidates if needed (loadStoredCandidates already does this)
-      // Ensure event listeners are set up for chat
-      setupChatEventListeners(state, chatLog, chatText, landingJdText);
-      
-      // Add click handler for job title display
-      if (jobTitleDisplay) {
-        jobTitleDisplay.addEventListener('click', handleJobTitleClick);
-      }
-      
-      // Load the stored data
-      await loadStoredCandidates();
-      
-      // Auto-generate summaries for top 5 candidates if we have JD hash
-      if (state.jdHash && state.candidates.length > 0) {
-        generateAutoSummaries(state.candidates);
-      }
-    } else {
-      console.log('📱 No existing data found, showing landing page');
-    }
-  } catch (error) {
-    console.error('❌ Error checking for existing data:', error);
-  }
-}
+// Old checkAndSkipLanding function removed - replaced with cleaner logic
 
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
 
-function initializeApp() {
+// Simple check if we should skip landing page
+function checkIfShouldSkipLanding() {
+  console.log('🔧 checkIfShouldSkipLanding()');
+  
+  try {
+    const jdData = loadJDData();
+    const hasJdHash = !!(jdData.jdHash);
+    
+    console.log('📱 Landing check:', { hasJdHash });
+    
+    return hasJdHash;
+  } catch (error) {
+    console.error('❌ Error checking landing state:', error);
+    return false;
+  }
+}
+
+// Setup main interface (candidates list, PDF viewer, chat)
+function setupMainInterface() {
+  console.log('🔧 setupMainInterface()');
+  
   // Setup all event listeners
   setupEventListeners();
   
   // Setup chat event listeners
   setupChatEventListeners(state, chatLog, chatText, landingJdText);
   
-  // Load stored data and check if we should skip landing
-  loadStoredCandidates();
-  checkAndSkipLanding();
+  // Switch to main interface
+  landingPage.style.display = 'none';
+  mainInterface.style.display = 'flex';
+  
+  // Add click handler for job title display
+  if (jobTitleDisplay) {
+    jobTitleDisplay.addEventListener('click', handleJobTitleClick);
+  }
+}
+
+// Setup landing page interface
+function setupLandingInterface() {
+  console.log('🔧 setupLandingInterface()');
+  
+  // Setup all event listeners
+  setupEventListeners();
+  
+  // Show landing page
+  landingPage.style.display = 'block';
+  mainInterface.style.display = 'none';
+}
+
+// Load existing data for main interface
+async function loadExistingData() {
+  console.log('🔧 loadExistingData()');
+  
+  try {
+    // Get JD data from storage (we already know it exists)
+    const jdData = loadJDData();
+    
+    // Restore state from storage
+    state.jdHash = jdData.jdHash;
+    state.jdTextSnapshot = jdData.jdTextSnapshot || '';
+    state.jobTitle = jdData.jobTitle || '';
+    
+    // Restore job title display
+    if (jdData.jdTextSnapshot) {
+      const lines = jdData.jdTextSnapshot.split('\n');
+      let jobTitle = '';
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line && line !== 'About the job' && (line.includes('Representative') || line.includes('Developer') || line.includes('Manager') || line.includes('Engineer') || line.includes('Specialist') || line.includes('Analyst') || line.includes('Consultant'))) {
+          jobTitle = line;
+          break;
+        }
+      }
+      
+      if (jobTitle) {
+        state.jobTitle = jobTitle;
+        const jobTitleDisplay = document.getElementById('jobTitleDisplay');
+        if (jobTitleDisplay) {
+          jobTitleDisplay.textContent = jobTitle;
+        }
+      } else {
+        state.jobTitle = 'No job title available';
+      }
+    } else {
+      state.jobTitle = 'No job title available';
+    }
+    
+    // Load stored candidates and auto-generate summaries
+    await loadStoredCandidates();
+    
+    // Auto-generate summaries for top 5 candidates if we have JD hash
+    if (state.jdHash && state.candidates.length > 0) {
+      generateAutoSummaries(state.candidates);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error loading existing data:', error);
+  }
+}
+
+function initializeApp() {
+  console.log('🔧 initializeApp()');
+  
+  // 1. Simple check if we should skip landing
+  const shouldSkipLanding = checkIfShouldSkipLanding();
+  
+  // 2. Setup the appropriate interface
+  if (shouldSkipLanding) {
+    setupMainInterface();
+    loadExistingData();
+  } else {
+    setupLandingInterface();
+  }
 }
 
 // Wait for DOM to be ready before initializing

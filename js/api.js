@@ -1,6 +1,7 @@
 // API calls to backend endpoints
 
 export async function bulkZipUpload(zipBlob, jdText, jdHash) {
+  console.log('🔧 bulkZipUpload()', !!zipBlob, !!jdText, !!jdHash);
   const form = new FormData();
   form.append('zip', zipBlob, 'resumes.zip');
   if (jdText) form.append('jdText', jdText);
@@ -23,6 +24,7 @@ export async function bulkZipUpload(zipBlob, jdText, jdHash) {
 }
 
 export async function explainCandidate(jdHash, resumeText) {
+  console.log('🔧 explainCandidate()', jdHash, resumeText?.length);
   const payload = {
     jdHash: jdHash,
     resumeText: resumeText
@@ -77,6 +79,7 @@ export async function explainCandidate(jdHash, resumeText) {
 }
 
 export async function chatWithCandidate(jdHash, resumeText, messages, mode) {
+  console.log('🔧 chatWithCandidate()', jdHash, resumeText?.length, messages?.length, mode);
   const payload = { jdHash, resumeText, messages, mode };
 
   console.log('Sending to /v1/chat:', payload);

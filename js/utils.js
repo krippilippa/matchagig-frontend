@@ -1,18 +1,22 @@
 // Helper functions and utilities
 
 export function setStatus(statusEl, msg) { 
+  console.log('🔧 setStatus()', msg);
   if (statusEl) statusEl.textContent = msg || ''; 
 }
 
 export function baseName(path) { 
+  console.log('🔧 baseName()', path);
   return (path || '').split(/[\\/]/).pop() || path; 
 }
 
 export function fmtCos(x) { 
+  console.log('🔧 fmtCos()', x);
   return (typeof x === 'number') ? x.toFixed(3) : ''; 
 }
 
 export function renderList(listEl, rows, onSelectCandidate) {
+  console.log('🔧 renderList()', rows.length);
   const sorted = rows.slice().sort((a, b) => (b.cosine ?? 0) - (a.cosine ?? 0));
   
   listEl.innerHTML = '';
@@ -32,6 +36,7 @@ export function renderList(listEl, rows, onSelectCandidate) {
 }
 
 export function createZipFromFiles(files) {
+  console.log('🔧 createZipFromFiles()', files.length);
   return new Promise(async (resolve) => {
     const JSZip = window.JSZip;
     if (!JSZip) {
@@ -48,10 +53,12 @@ export function createZipFromFiles(files) {
 }
 
 export function createFileMap(files) {
+  console.log('🔧 createFileMap()', files.length);
   return new Map(files.map(f => [baseName(f.name), f]));
 }
 
 export function createCandidateFromRecord(record) {
+  console.log('🔧 createCandidateFromRecord()', record.resumeId);
   // Recreate objectUrl for PDF preview
   let objectUrl = '';
   
@@ -82,6 +89,7 @@ export function createCandidateFromRecord(record) {
 }
 
 export function updateJDStatus(jdStatusEl, hash, textSnapshot) {
+  console.log('🔧 updateJDStatus()', hash, !!textSnapshot);
   if (hash) {
     jdStatusEl.textContent = `JD hash set ✓ (${hash})`;
     jdStatusEl.style.color = '#4CAF50';
@@ -92,6 +100,7 @@ export function updateJDStatus(jdStatusEl, hash, textSnapshot) {
 }
 
 export function clearUI(listEl, pdfFrame, viewerTitle, jdStatusEl, chatLog) {
+  console.log('🔧 clearUI()');
   listEl.innerHTML = '';
   pdfFrame.src = '';
   viewerTitle.textContent = 'No candidate selected';
