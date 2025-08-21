@@ -51,7 +51,6 @@ const statusEl   = $('status');
 const listEl     = $('list');
 const pdfFrame   = $('pdfFrame');
 const viewerTitle= $('viewerTitle');
-const explainMd  = $('explainMd');
 const jdTextarea = $('jdText');
 const jdStatusEl = $('jdStatus');
 const chatLog    = $('chatLog');
@@ -165,7 +164,7 @@ backToDemoBtn.addEventListener('click', async () => {
     state.currentCandidate = null;
     
     // Clear UI
-    clearUI(listEl, pdfFrame, viewerTitle, explainMd, jdStatusEl, chatLog);
+    clearUI(listEl, pdfFrame, viewerTitle, jdStatusEl, chatLog);
     
     // Reset chat event listeners
     resetChatEventListeners();
@@ -236,7 +235,7 @@ if (jdHashEl.value.trim()) {
 //       state.candidates = [];
       
 //       // Clear UI
-//       clearUI(listEl, pdfFrame, viewerTitle, explainMd, jdStatusEl, chatLog);
+//       clearUI(listEl, pdfFrame, viewerTitle, jdStatusEl, chatLog);
       
 //       // Clear chat state
 //       state.messages = [];
@@ -333,27 +332,27 @@ pdfInput.addEventListener('change', (e) => {
 
 async function onSelectCandidate(e) {
   const rid = e.currentTarget.dataset.resumeId;
-  console.log('Candidate clicked:', rid);
+  console.log('🎯 Candidate clicked:', rid);
   
   // Find the candidate in our reconstructed state
   const candidate = state.candidates.find(c => c.resumeId === rid);
   if (!candidate) { 
-    console.error('Candidate not found in state:', rid);
+    console.error('❌ Candidate not found in state:', rid);
     setStatus(statusEl, 'Candidate not found in state.'); 
     return; 
   }
   
-  console.log('Found candidate:', candidate);
+  console.log('✅ Found candidate:', candidate);
 
   // Get the full record from IndexedDB for additional data
   const rec = await getResume(rid);
   if (!rec) { 
-    console.error('Not found in IndexedDB:', rid);
+    console.error('❌ Not found in IndexedDB:', rid);
     setStatus(statusEl, 'Not found in IndexedDB.'); 
     return; 
   }
   
-  console.log('Found record in IndexedDB:', rec);
+  console.log('✅ Found record in IndexedDB:', rec);
 
   // Set current candidate for chat
   state.currentCandidate = rec;
@@ -364,76 +363,91 @@ async function onSelectCandidate(e) {
   
   // Use the reconstructed objectUrl for PDF preview
   if (candidate.objectUrl) {
-    console.log('Setting PDF frame src to:', candidate.objectUrl);
+    console.log('📄 Setting PDF frame src to:', candidate.objectUrl);
     pdfFrame.src = candidate.objectUrl;
   } else {
-    console.log('No objectUrl found, clearing PDF frame');
+    console.log('❌ No objectUrl found, clearing PDF frame');
     pdfFrame.src = '';
   }
 
-  // Show loading state
-  explainMd.textContent = 'Generating explanation...';
-  explainMd.style.borderLeft = '4px solid #FF9800';
-  explainMd.title = 'Loading...';
+  // Debug: Check current state
+  console.log('🔍 Current state:', {
+    jdHash: state.jdHash,
+    jdTextSnapshot: state.jdTextSnapshot,
+    currentCandidate: !!state.currentCandidate,
+    candidateId: state.currentCandidate?.resumeId
+  });
+
+  // Show loading state in chat
+  appendMsg(chatLog, state, 'assistant', 'Generating initial assessment...');
   
   try {
+    console.log('🚀 Calling explainCandidateHandler...');
     await explainCandidateHandler(rec);
+    console.log('✅ explainCandidateHandler completed successfully');
   } catch (err) {
-    console.error(err);
-    explainMd.textContent = 'Could not generate explanation.';
-    explainMd.style.borderLeft = '4px solid #f44336';
-    explainMd.title = 'Error occurred while generating explanation';
+    console.error('❌ Error in explainCandidateHandler:', err);
+    appendMsg(chatLog, state, 'assistant', 'Could not generate initial assessment: ' + err.message);
   }
 }
 
 async function explainCandidateHandler(rec) {
+  console.log('🔍 explainCandidateHandler called with record:', rec.resumeId);
+  
   // Check if we have a cached LLM response
   if (rec.llmResponse && rec.llmResponseTimestamp) {
     const age = Date.now() - rec.llmResponseTimestamp;
     const maxAge = 24 * 60 * 60 * 1000; // 24 hours
     
     if (age < maxAge) {
-      // Use cached response if it's less than 24 hours old
-      explainMd.textContent = rec.llmResponse;
-      // Add a small indicator that this is cached
-      explainMd.style.borderLeft = '4px solid #4CAF50';
-      explainMd.title = `Cached response from ${new Date(rec.llmResponseTimestamp).toLocaleString()}`;
+      console.log('✅ Using cached LLM response (age:', age, 'ms)');
+      appendMsg(chatLog, state, 'assistant', rec.llmResponse);
       return;
+    } else {
+      console.log('⏰ Cached response expired (age:', age, 'ms)');
     }
   }
 
   // API contract: use jdHash and resumeText
+  console.log('🔑 Checking JD hash:', state.jdHash);
   if (!state.jdHash) {
-    explainMd.textContent = '❌ JD Hash required. Please enter a valid JD hash in the hash field above.';
-    explainMd.style.borderLeft = '4px solid #f44336';
-    explainMd.title = 'JD Hash missing - enter hash for LLM explanations';
+    console.error('❌ No JD hash found in state');
+    appendMsg(chatLog, state, 'assistant', '❌ JD Hash required. Please enter a valid JD hash in the hash field above.');
+    return;
+  }
+
+  console.log('📝 Resume text length:', rec.canonicalText?.length || 0);
+  if (!rec.canonicalText) {
+    console.error('❌ No canonical text found in record');
+    appendMsg(chatLog, state, 'assistant', '❌ No resume text found for this candidate.');
     return;
   }
 
   try {
+    console.log('🚀 Calling explainCandidate API...');
     const result = await explainCandidate(state.jdHash, rec.canonicalText);
+    console.log('✅ API call successful, response length:', result.markdown?.length || 0);
     
     // Adopt the JD hash if backend used/created one
     if (result.jdHashHeader) {
+      console.log('🔄 Backend provided JD hash:', result.jdHashHeader);
       state.jdHash = result.jdHashHeader;
       state.jdTextSnapshot = jdTextarea.value;
-      updateJDStatus(jdStatusEl, result.jdHashHeader, state.jdTextSnapshot);
     }
 
-    explainMd.textContent = result.markdown;
-    explainMd.style.borderLeft = '4px solid #2196F3';
-    explainMd.title = 'Fresh response generated just now';
+    // Send the LLM response to chat
+    appendMsg(chatLog, state, 'assistant', result.markdown);
     
     // Store the LLM response in IndexedDB
     try {
       await updateResumeLLMResponse(rec.resumeId, result.markdown);
+      console.log('💾 LLM response stored in IndexedDB');
     } catch (error) {
-      console.error('Failed to store LLM response:', error);
+      console.error('❌ Failed to store LLM response:', error);
     }
   } catch (error) {
-    explainMd.textContent = error.message;
-    explainMd.style.borderLeft = '4px solid #f44336';
-    explainMd.title = `Error: ${error.message}`;
+    console.error('❌ API call failed:', error);
+    appendMsg(chatLog, state, 'assistant', '❌ Error: ' + error.message);
   }
 }
 
@@ -460,6 +474,7 @@ async function processResumes() {
 
     // Check if backend returned a JD hash from bulk processing
     if (data.jdHash) {
+      console.log('🔑 Backend returned JD hash:', data.jdHash);
       state.jdHash = data.jdHash;
       state.jdTextSnapshot = jdTextEl.value.trim();
       // JD status is hidden in demo mode
@@ -468,10 +483,19 @@ async function processResumes() {
       try {
         localStorage.setItem('matchagig_jdHash', data.jdHash);
         localStorage.setItem('matchagig_jdTextSnapshot', state.jdTextSnapshot);
+        console.log('💾 JD hash stored in localStorage');
       } catch (error) {
         console.error('❌ Failed to store JD hash in localStorage:', error);
       }
+    } else {
+      console.log('⚠️ No JD hash returned from backend');
     }
+
+    console.log('🔍 Final state after processing:', {
+      jdHash: state.jdHash,
+      jdTextSnapshot: state.jdTextSnapshot,
+      candidatesCount: state.candidates.length
+    });
 
     // 3) Build a quick lookup filename -> File for local preview storage
     const fileMap = createFileMap(selectedFiles);

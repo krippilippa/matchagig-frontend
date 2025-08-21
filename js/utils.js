@@ -88,13 +88,10 @@ export function updateJDStatus(jdStatusEl, hash, textSnapshot) {
   }
 }
 
-export function clearUI(listEl, pdfFrame, viewerTitle, explainMd, jdStatusEl, chatLog) {
+export function clearUI(listEl, pdfFrame, viewerTitle, jdStatusEl, chatLog) {
   listEl.innerHTML = '';
   pdfFrame.src = '';
   viewerTitle.textContent = 'No candidate selected';
-  explainMd.textContent = '';
-  explainMd.style.borderLeft = '';
-  explainMd.title = '';
   jdStatusEl.textContent = '';
   chatLog.innerHTML = '';
 }
