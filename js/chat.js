@@ -64,11 +64,39 @@ export function appendMsg(chatLog, state, role, content) {
   
   const wrap = document.createElement('div');
   wrap.className = role;
-  wrap.textContent = content;
+  
+  // Render Markdown for assistant messages
+  if (role === 'assistant') {
+    wrap.classList.add('markdown');
+    // Use marked.js to parse Markdown
+    if (window.marked) {
+      wrap.innerHTML = window.marked.parse(content);
+    } else {
+      wrap.textContent = content;
+    }
+  } else {
+    wrap.textContent = content;
+  }
+  
   chatLog.appendChild(wrap);
   chatLog.scrollTop = chatLog.scrollHeight;
+  
   // Keep local history
   state.messages.push({ role, content });
+  
+  // Save chat history to localStorage if we have a current candidate
+  if (state.currentCandidate && state.currentCandidate.resumeId) {
+    const saveChatHistory = (candidateId, messages) => {
+      try {
+        const chatKey = `matchagig_chat_${candidateId}`;
+        localStorage.setItem(chatKey, JSON.stringify(messages));
+      } catch (error) {
+        console.error('❌ Failed to save chat history:', error);
+      }
+    };
+    
+    saveChatHistory(state.currentCandidate.resumeId, state.messages);
+  }
 }
 
 async function callChat(state, chatLog, jdTextEl, mode) {

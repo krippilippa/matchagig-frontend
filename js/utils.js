@@ -54,15 +54,20 @@ export function createFileMap(files) {
 export function createCandidateFromRecord(record) {
   // Recreate objectUrl for PDF preview
   let objectUrl = '';
-  if (record.fileData && record.fileType) {
+  
+  // First check if we have a top-level objectUrl
+  if (record.objectUrl) {
+    objectUrl = record.objectUrl;
+    console.log('Using top-level objectUrl:', objectUrl);
+  } else if (record.fileData && record.fileType) {
     // Recreate Blob from stored ArrayBuffer
     const blob = new Blob([record.fileData], { type: record.fileType });
     objectUrl = URL.createObjectURL(blob);
     console.log('Created blob from ArrayBuffer:', blob, 'objectUrl:', objectUrl);
   } else if (record.meta && record.meta.objectUrl) {
-    // If we have a stored objectUrl, use it
+    // Fallback to meta.objectUrl if it exists
     objectUrl = record.meta.objectUrl;
-    console.log('Using stored objectUrl:', objectUrl);
+    console.log('Using stored meta.objectUrl:', objectUrl);
   } else {
     console.log('No file data found for record:', record.resumeId);
   }

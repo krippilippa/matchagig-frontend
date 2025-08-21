@@ -157,34 +157,45 @@ backToDemoBtn.addEventListener('click', async () => {
     // Clear localStorage
     localStorage.removeItem('matchagig_jdHash');
     localStorage.removeItem('matchagig_jdTextSnapshot');
+    localStorage.removeItem('matchagig_jobTitle'); // Clear stored job title
+    
+    // Clear all chat history
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('matchagig_chat_')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    console.log('🗑️ Cleared chat history for all candidates');
     
     // Reset state
+    state.candidates = [];
     state.jdHash = null;
     state.jdTextSnapshot = '';
-    state.candidates = [];
+    state.jobTitle = '';
+    state.selectedCandidateId = null;
+    state.chatHistory = {};
     state.messages = [];
     state.currentCandidate = null;
-    
+
     // Clear UI
     clearUI(listEl, pdfFrame, viewerTitle, jdStatusEl, chatLog);
-    
-    // Reset chat event listeners
-    resetChatEventListeners();
-    
+
     // Switch back to landing page
     mainInterface.style.display = 'none';
     landingPage.style.display = 'block';
     
-    // Reset landing page
-    landingPdfInput.value = '';
-    landingJdText.value = '';
-    updateUploadStatus(0);
+    // Reset landing page inputs
+    landingPdfInput.value = ''; // Clear selected files
+    landingJdText.value = ''; // Clear JD text
+    updateUploadStatus(0); // Reset file count display
     
-    // Update status
-    setStatus(statusEl, 'Demo reset. Ready for fresh upload.');
+    console.log('🔄 Back to Demo: All storage cleared and UI reset.');
   } catch (error) {
-    console.error('❌ Error resetting demo:', error);
-    setStatus(statusEl, 'Error resetting demo: ' + error.message);
+    console.error('❌ Error clearing storage or resetting UI:', error);
+    alert('Error resetting demo: ' + error.message);
   }
 });
 
@@ -195,8 +206,47 @@ const state = {
   candidates: [],        // from /v1/bulk-zip
   messages: [],          // running chat
   currentCandidate: null, // { canonicalText, pdfUrl, email, ... }
-  jobTitle: '' // Added for job title
+  jobTitle: '', // Added for job title
+  chatHistory: {} // Store chat history for each candidate
 };
+
+// Function to save chat history for a specific candidate
+function saveChatHistory(candidateId, messages) {
+  try {
+    const chatKey = `matchagig_chat_${candidateId}`;
+    localStorage.setItem(chatKey, JSON.stringify(messages));
+    console.log('💾 Chat history saved for candidate:', candidateId);
+  } catch (error) {
+    console.error('❌ Failed to save chat history:', error);
+  }
+}
+
+// Function to load chat history for a specific candidate
+function loadChatHistory(candidateId) {
+  try {
+    const chatKey = `matchagig_chat_${candidateId}`;
+    const stored = localStorage.getItem(chatKey);
+    if (stored) {
+      const messages = JSON.parse(stored);
+      console.log('📱 Chat history loaded for candidate:', candidateId, 'Messages:', messages.length);
+      return messages;
+    }
+  } catch (error) {
+    console.error('❌ Failed to load chat history:', error);
+  }
+  return [];
+}
+
+// Function to clear chat history for a specific candidate
+function clearChatHistory(candidateId) {
+  try {
+    const chatKey = `matchagig_chat_${candidateId}`;
+    localStorage.removeItem(chatKey);
+    console.log('🗑️ Chat history cleared for candidate:', candidateId);
+  } catch (error) {
+    console.error('❌ Failed to clear chat history:', error);
+  }
+}
 
 // --- Event Listeners ---
 
@@ -332,14 +382,14 @@ async function checkAndSkipLanding() {
       state.jdHash = storedJdHash;
       state.jdTextSnapshot = storedJdTextSnapshot || '';
       
-      // Try to extract job title from stored JD text
+      // Restore job title
       if (storedJdTextSnapshot) {
         const lines = storedJdTextSnapshot.split('\n');
         // Look for the job title line (usually after "About the job" or contains the role)
         let jobTitle = '';
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i].trim();
-          if (line && line !== 'About the job' && line.includes('Representative') || line.includes('Developer') || line.includes('Manager') || line.includes('Engineer')) {
+          if (line && line !== 'About the job' && (line.includes('Representative') || line.includes('Developer') || line.includes('Manager') || line.includes('Engineer') || line.includes('Specialist') || line.includes('Analyst') || line.includes('Consultant'))) {
             jobTitle = line;
             break;
           }
@@ -348,35 +398,31 @@ async function checkAndSkipLanding() {
         // If we found a job title, use it
         if (jobTitle) {
           state.jobTitle = jobTitle;
-          console.log('🏷️ Job title extracted from stored text:', jobTitle);
-          
-          // Update the job title display
+          console.log('🏷️ Job title extracted from stored JD text:', jobTitle);
           const jobTitleDisplay = document.getElementById('jobTitleDisplay');
           if (jobTitleDisplay) {
             jobTitleDisplay.textContent = jobTitle;
           }
         } else {
-          // Fallback: use the first non-empty line that's not "About the job"
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (line && line !== 'About the job') {
-              state.jobTitle = line;
-              console.log('🏷️ Using fallback job title from stored text:', line);
-              
-              // Update the job title display
-              const jobTitleDisplay = document.getElementById('jobTitleDisplay');
-              if (jobTitleDisplay) {
-                jobTitleDisplay.textContent = line;
-              }
-              break;
-            }
-          }
+          state.jobTitle = 'No job title available';
+          console.log('⚠️ No job title could be extracted from stored JD text.');
         }
+      } else {
+        state.jobTitle = 'No job title available';
       }
-      
-      // Hide landing page and show main interface
+
+      // Switch to main interface
       landingPage.style.display = 'none';
       mainInterface.style.display = 'flex';
+      
+      // Re-render candidates if needed (loadStoredCandidates already does this)
+      // Ensure event listeners are set up for chat
+      setupChatEventListeners(state, chatLog, chatText, landingJdText);
+      
+      // Add click handler for job title display
+      if (jobTitleDisplay) {
+        jobTitleDisplay.addEventListener('click', jobTitleDisplayClickHandler);
+      }
       
       // Load the stored data
       await loadStoredCandidates();
@@ -435,10 +481,42 @@ async function onSelectCandidate(e) {
   
   console.log('✅ Found record in IndexedDB:', rec);
 
+  // Reconstruct objectUrl from stored fileData if needed
+  if (rec.fileData && !rec.objectUrl) {
+    try {
+      const blob = new Blob([rec.fileData], { type: rec.fileType || 'application/pdf' });
+      rec.objectUrl = URL.createObjectURL(blob);
+      console.log('🔄 Reconstructed objectUrl from fileData:', rec.objectUrl);
+    } catch (error) {
+      console.error('❌ Failed to reconstruct objectUrl:', error);
+    }
+  }
+
   // Set current candidate for chat
   state.currentCandidate = rec;
   state.messages = []; // start a fresh chat per candidate
   chatLog.innerHTML = '';
+
+  // Set the selected candidate in state
+  state.selectedCandidateId = rid;
+
+  // Load chat history for this candidate
+  const candidateChatHistory = loadChatHistory(rid);
+  state.messages = candidateChatHistory;
+  
+  // Update the PDF viewer
+  if (rec.objectUrl) {
+    pdfFrame.src = rec.objectUrl;
+    console.log('📄 PDF loaded:', rec.objectUrl);
+  } else {
+    pdfFrame.src = '';
+    console.warn('⚠️ No objectUrl for PDF:', rec);
+    console.log('🔍 Full record object:', rec);
+    console.log('🔍 Record keys:', Object.keys(rec));
+    if (rec.meta) {
+      console.log('🔍 Meta keys:', Object.keys(rec.meta));
+    }
+  }
 
   viewerTitle.textContent = candidate.email || candidate.filename || candidate.resumeId;
   
@@ -448,32 +526,24 @@ async function onSelectCandidate(e) {
   updateJdBtn.style.display = 'none';
   
   // Use the reconstructed objectUrl for PDF preview
-  if (candidate.objectUrl) {
-    console.log('📄 Setting PDF frame src to:', candidate.objectUrl);
-    pdfFrame.src = candidate.objectUrl;
-  } else {
-    console.log('❌ No objectUrl found, clearing PDF frame');
-    pdfFrame.src = '';
-  }
+  // pdfFrame.src = candidate.objectUrl; // Assuming objectUrl is part of candidate now
 
-  // Debug: Check current state
-  console.log('🔍 Current state:', {
-    jdHash: state.jdHash,
-    jdTextSnapshot: state.jdTextSnapshot,
-    currentCandidate: !!state.currentCandidate,
-    candidateId: state.currentCandidate?.resumeId
-  });
-
-  // Show loading state in chat
-  appendMsg(chatLog, state, 'assistant', 'Generating initial assessment...');
+  // Clear previous chat messages and start new conversation
+  chatLog.innerHTML = '';
   
-  try {
-    console.log('🚀 Calling explainCandidateHandler...');
+  // Restore chat history if it exists
+  if (candidateChatHistory.length > 0) {
+    console.log('📱 Restoring chat history for candidate:', rid);
+    candidateChatHistory.forEach(msg => {
+      appendMsg(chatLog, state, msg.role, msg.content);
+    });
+  } else {
+    // Start fresh conversation with initial assessment
+    appendMsg(chatLog, state, 'assistant', 'Generating initial assessment...');
+    
+    // Trigger LLM explanation
+    console.log('🚀 Calling explainCandidateHandler for:', rec.resumeId);
     await explainCandidateHandler(rec);
-    console.log('✅ explainCandidateHandler completed successfully');
-  } catch (err) {
-    console.error('❌ Error in explainCandidateHandler:', err);
-    appendMsg(chatLog, state, 'assistant', 'Could not generate initial assessment: ' + err.message);
   }
 }
 
@@ -618,13 +688,13 @@ async function processResumes() {
         fileData: file ? await file.arrayBuffer() : null, // Store as ArrayBuffer
         fileType: file ? file.type : null,
         canonicalText: row.canonicalText || '', // full normalized
+        objectUrl: objectUrl, // Store objectUrl at the top level for easier access
         meta: {
           resumeId: row.resumeId,
           filename: baseName(row.filename),
           bytes: row.bytes || (file ? file.size : 0),
           email: row.email || null,
-          cosine: row.cosine,
-          objectUrl
+          cosine: row.cosine
         }
       };
       
