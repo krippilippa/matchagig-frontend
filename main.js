@@ -349,7 +349,8 @@ async function processResumes() {
 
     // 4) Persist PDFs + canonicalText in IDB by resumeId
     for (const row of (data.results || [])) {
-      const file = fileMap.get(baseName(row.filename));
+      const filename = baseName(row.filename);  // Call once, store result
+      const file = fileMap.get(filename);
       const objectUrl = file ? URL.createObjectURL(file) : '';
       
       const record = {
@@ -360,7 +361,7 @@ async function processResumes() {
         objectUrl: objectUrl,
         meta: {
           resumeId: row.resumeId,
-          filename: baseName(row.filename),
+          filename: filename,  // Use stored result
           bytes: row.bytes || (file ? file.size : 0),
           email: row.email || null,
           cosine: row.cosine
@@ -372,7 +373,8 @@ async function processResumes() {
 
     // 5) Build candidates array with objectUrl for immediate use
     state.candidates = (data.results || []).map(row => {
-      const file = fileMap.get(baseName(row.filename));
+      const filename = baseName(row.filename);  // Call once, store result
+      const file = fileMap.get(filename);
       const objectUrl = file ? URL.createObjectURL(file) : '';
       
       return {
@@ -538,9 +540,10 @@ async function explainCandidateHandler(rec) {
   }
 }
 
-// Auto-summary generation
+// Auto-summary generation for NEW candidates
 async function generateAutoSummaries(candidates) {
   console.log('🔧 generateAutoSummaries()');
+  
   // Prevent duplicate generation
   if (state.autoSummariesGenerated) {
     console.log('🚫 Auto-summaries already generated, skipping...');
@@ -552,61 +555,22 @@ async function generateAutoSummaries(candidates) {
   // Set flag to prevent duplicate calls
   state.autoSummariesGenerated = true;
   
+  console.log(`📝 Generating auto-summaries for ${topCandidates.length} new candidates`);
+  
   for (const candidate of topCandidates) {
     const candidateId = candidate.resumeId;
     
-    // Check if this candidate already has a summary using the new chat system
-    const existingHistory = getCandidateMessages(candidateId);
-    const hasSummary = existingHistory.some(msg => 
-      msg.role === 'assistant' && 
-      msg.content !== 'Generating initial assessment...' &&
-      msg.content !== '❌ Failed to generate assessment:' &&
-      (msg.content.includes('assessment') || 
-       msg.content.includes('summary') ||
-       msg.content.includes('fit') ||
-       msg.content.includes('Technical Sales Representative') ||
-       msg.content.includes('experience') ||
-       msg.content.includes('skills') ||
-       msg.content.includes('background'))
-    );
+    console.log('📝 Generating auto-summary for candidate:', candidateId);
     
-    if (!hasSummary) {
-      console.log('📝 Generating auto-summary for candidate:', candidateId);
-      
-      // Add loading message to candidate's history
-      addMessageToCandidate(candidateId, 'assistant', 'Generating initial assessment...');
-      
-      try {
-        // Get the full record from IndexedDB
-        const rec = await getResume(candidateId);
-        if (rec) {
-          // Generate the summary in the background
-          generateCandidateSummary(rec);
-        }
-      } catch (error) {
-        console.error('❌ Error generating auto-summary for candidate:', candidateId, error);
-        addMessageToCandidate(candidateId, 'assistant', '❌ Failed to generate assessment: ' + error.message);
+    try {
+      // Get the full record from IndexedDB
+      const rec = await getResume(candidateId);
+      if (rec) {
+        // Generate the summary in the background
+        generateCandidateSummary(rec);
       }
-    } else {
-      // Debug: Log what summary was found
-      const summaryMsg = existingHistory.find(msg => 
-        msg.role === 'assistant' && 
-        msg.content !== 'Generating initial assessment...' &&
-        msg.content !== '❌ Failed to generate assessment:' &&
-        (msg.content.includes('assessment') || 
-         msg.content.includes('summary') ||
-         msg.content.includes('fit') ||
-         msg.content.includes('Technical Sales Representative') ||
-         msg.content.includes('experience') ||
-         msg.content.includes('skills') ||
-         msg.content.includes('background'))
-      );
-      
-      if (summaryMsg) {
-        console.log('✅ Candidate already has summary');
-      } else {
-        console.log('⚠️ Candidate has loading/error state, will regenerate summary:', candidateId);
-      }
+    } catch (error) {
+      console.error('❌ Error generating auto-summary for candidate:', candidateId, error);
     }
   }
 }

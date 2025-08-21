@@ -186,7 +186,6 @@ export function saveJDData(jdHash, jdTextSnapshot, jobTitle) {
     if (jobTitle) {
       localStorage.setItem('matchagig_jobTitle', jobTitle);
     }
-    console.log('💾 JD data saved:', { jdHash, hasJdText: !!jdTextSnapshot, jobTitle });
   } catch (error) {
     console.error('❌ Failed to save JD data:', error);
     throw error;
