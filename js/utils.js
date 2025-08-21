@@ -94,4 +94,10 @@ export function clearUI(listEl, pdfFrame, viewerTitle, jdStatusEl, chatLog) {
   viewerTitle.textContent = 'No candidate selected';
   jdStatusEl.textContent = '';
   chatLog.innerHTML = '';
+  
+  // Clear job title display
+  const jobTitleDisplay = document.getElementById('jobTitleDisplay');
+  if (jobTitleDisplay) {
+    jobTitleDisplay.textContent = 'No job title available';
+  }
 }

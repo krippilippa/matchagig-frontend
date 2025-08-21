@@ -193,3 +193,14 @@ html, body { height: 100%; margin: 0; }
   padding: 8px 16px; 
   white-space: nowrap; 
 }
+
+.job-title-display {
+  padding: 12px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #495057;
+  min-height: 20px;
+}

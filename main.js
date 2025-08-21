@@ -45,13 +45,11 @@ const backToDemoBtn = $('backToDemoBtn');
 
 // Main interface elements
 const pdfInput   = $('pdfInput');
-const jdTextEl   = $('jdText');
 const jdHashEl   = $('jdHash');
 const statusEl   = $('status');
 const listEl     = $('list');
 const pdfFrame   = $('pdfFrame');
 const viewerTitle= $('viewerTitle');
-const jdTextarea = $('jdText');
 const jdStatusEl = $('jdStatus');
 const chatLog    = $('chatLog');
 const chatText   = $('chatText');
@@ -119,7 +117,7 @@ runMatchBtn.addEventListener('click', async () => {
   
   // Transfer data to main interface
   pdfInput.files = files;
-  jdTextEl.value = jdText;
+  // Note: jdTextEl textarea was removed, so we don't set its value anymore
   
   // Switch to main interface
   landingPage.style.display = 'none';
@@ -192,7 +190,8 @@ const state = {
   jdTextSnapshot: '',   // the JD textarea value that produced jdHash
   candidates: [],        // from /v1/bulk-zip
   messages: [],          // running chat
-  currentCandidate: null // { canonicalText, pdfUrl, email, ... }
+  currentCandidate: null, // { canonicalText, pdfUrl, email, ... }
+  jobTitle: '' // Added for job title
 };
 
 // --- Event Listeners ---
@@ -202,7 +201,7 @@ jdHashEl.addEventListener('input', () => {
   const hash = jdHashEl.value.trim();
   if (hash) {
     state.jdHash = hash;
-    state.jdTextSnapshot = jdTextarea.value;
+    state.jdTextSnapshot = landingJdText.value;
     // JD status is hidden in demo mode
   } else {
     state.jdHash = null;
@@ -214,7 +213,7 @@ jdHashEl.addEventListener('input', () => {
 if (jdHashEl.value.trim()) {
   const hash = jdHashEl.value.trim();
   state.jdHash = hash;
-  state.jdTextSnapshot = jdTextarea.value;
+  state.jdTextSnapshot = landingJdText.value;
   // JD status is hidden in demo mode
 }
 
@@ -307,11 +306,11 @@ async function loadStoredCandidates() {
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     loadStoredCandidates();
-    setupChatEventListeners(state, chatLog, chatText, jdTextEl);
+    setupChatEventListeners(state, chatLog, chatText, landingJdText);
   });
 } else {
   loadStoredCandidates();
-  setupChatEventListeners(state, chatLog, chatText, jdTextEl);
+  setupChatEventListeners(state, chatLog, chatText, landingJdText);
 }
 
 // Add refresh button functionality
@@ -432,7 +431,7 @@ async function explainCandidateHandler(rec) {
     if (result.jdHashHeader) {
       console.log('🔄 Backend provided JD hash:', result.jdHashHeader);
       state.jdHash = result.jdHashHeader;
-      state.jdTextSnapshot = jdTextarea.value;
+      state.jdTextSnapshot = landingJdText.value;
     }
 
     // Send the LLM response to chat
@@ -466,17 +465,37 @@ async function processResumes() {
     const zipBlob = await createZipFromFiles(selectedFiles);
 
     // 2) Submit to /v1/bulk-zip (multipart) with JD
-    const jdText = jdTextEl.value.trim();
+    const jdText = landingJdText.value.trim();
     const jdHash = jdHashEl.value.trim();
     
     setStatus(statusEl, 'Uploading…');
     const data = await bulkZipUpload(zipBlob, jdText, jdHash);
 
+    // Debug: Log the full API response
+    console.log('🔍 Full API response from /v1/bulk-zip:', data);
+    console.log('🔍 Data.jd structure:', data.jd);
+    console.log('🔍 Data.jd.roleOrg:', data.jd?.roleOrg);
+    console.log('🔍 Data.jd.roleOrg.title:', data.jd?.roleOrg?.title);
+
+    // Extract job title from the response
+    if (data.jd && data.jd.roleOrg && data.jd.roleOrg.title) {
+      console.log('🏷️ Job title extracted:', data.jd.roleOrg.title);
+      state.jobTitle = data.jd.roleOrg.title;
+      
+      // Update the job title display
+      const jobTitleDisplay = document.getElementById('jobTitleDisplay');
+      if (jobTitleDisplay) {
+        jobTitleDisplay.textContent = data.jd.roleOrg.title;
+      }
+    } else {
+      console.log('⚠️ No job title found in response. Data.jd.roleOrg:', data.jd?.roleOrg);
+    }
+
     // Check if backend returned a JD hash from bulk processing
     if (data.jdHash) {
       console.log('🔑 Backend returned JD hash:', data.jdHash);
       state.jdHash = data.jdHash;
-      state.jdTextSnapshot = jdTextEl.value.trim();
+      state.jdTextSnapshot = landingJdText.value.trim();
       // JD status is hidden in demo mode
       
       // Store JD hash in localStorage for persistence
