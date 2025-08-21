@@ -55,21 +55,31 @@ export function createCandidateFromRecord(record) {
   // Recreate objectUrl for PDF preview
   let objectUrl = '';
   
-  // First check if we have a top-level objectUrl
-  if (record.objectUrl) {
-    objectUrl = record.objectUrl;
-    console.log('Using top-level objectUrl:', objectUrl);
-  } else if (record.fileData && record.fileType) {
+  // Debug: Log what data is available
+  console.log('🔍 PDF Reconstruction for', record.resumeId, ':', {
+    hasFileData: !!record.fileData,
+    fileDataSize: record.fileData?.byteLength,
+    hasFileType: !!record.fileType,
+    hasObjectUrl: !!record.objectUrl,
+    hasMetaObjectUrl: !!(record.meta?.objectUrl)
+  });
+  
+  // Always reconstruct from fileData on page load (stored objectUrl becomes invalid)
+  if (record.fileData && record.fileType) {
     // Recreate Blob from stored ArrayBuffer
     const blob = new Blob([record.fileData], { type: record.fileType });
     objectUrl = URL.createObjectURL(blob);
-    console.log('Created blob from ArrayBuffer:', blob, 'objectUrl:', objectUrl);
+    console.log('🔄 Reconstructed blob from fileData, size:', blob.size, 'type:', blob.type);
+  } else if (record.objectUrl) {
+    // Fallback to stored objectUrl only if no fileData available
+    objectUrl = record.objectUrl;
+    console.log('⚠️ Using stored objectUrl (may be invalid after refresh)');
   } else if (record.meta && record.meta.objectUrl) {
-    // Fallback to meta.objectUrl if it exists
+    // Last fallback to meta.objectUrl
     objectUrl = record.meta.objectUrl;
-    console.log('Using stored meta.objectUrl:', objectUrl);
+    console.log('📋 Using meta.objectUrl (may be invalid after refresh)');
   } else {
-    console.log('No file data found for record:', record.resumeId);
+    console.log('❌ No file data found for record:', record.resumeId);
   }
   
   return {

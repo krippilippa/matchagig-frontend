@@ -99,12 +99,12 @@ function updateUploadStatus(fileCount) {
     uploadArea.innerHTML = `<strong>${fileCount} PDF file(s) selected</strong><br>Ready to process`;
     uploadArea.style.borderColor = '#4CAF50';
   } else {
-    uploadArea.innerHTML = `<strong>Drag & drop résumés here</strong><br>or click to select files. We never save your files.`;
+    uploadArea.innerHTML = `<strong>Click to select PDFs</strong><br>or drag and drop here`;
     uploadArea.style.borderColor = '#ccc';
   }
 }
 
-// Handle Run Match button
+// --- Run Match Button ---
 runMatchBtn.addEventListener('click', async () => {
   const files = landingPdfInput.files;
   const jdText = landingJdText.value.trim();
@@ -177,8 +177,8 @@ backToDemoBtn.addEventListener('click', async () => {
     state.jobTitle = '';
     state.selectedCandidateId = null;
     state.chatHistory = {};
-    state.messages = [];
     state.currentCandidate = null;
+    state.autoSummariesGenerated = false;
 
     // Clear UI
     clearUI(listEl, pdfFrame, viewerTitle, jdStatusEl, chatLog);
@@ -204,10 +204,11 @@ const state = {
   jdHash: null,
   jdTextSnapshot: '',   // the JD textarea value that produced jdHash
   candidates: [],        // from /v1/bulk-zip
-  messages: [],          // running chat
   currentCandidate: null, // { canonicalText, pdfUrl, email, ... }
   jobTitle: '', // Added for job title
-  chatHistory: {} // Store chat history for each candidate
+  chatHistory: {}, // Store chat history for each candidate: { candidateId: [messages] }
+  selectedCandidateId: null, // Track which candidate is currently selected
+  autoSummariesGenerated: false // Prevent duplicate auto-summary generation
 };
 
 // Function to save chat history for a specific candidate
@@ -215,7 +216,14 @@ function saveChatHistory(candidateId, messages) {
   try {
     const chatKey = `matchagig_chat_${candidateId}`;
     localStorage.setItem(chatKey, JSON.stringify(messages));
-    console.log('💾 Chat history saved for candidate:', candidateId);
+    
+    // Debug: Log what's being saved
+    console.log('💾 Chat History Save:', {
+      candidateId,
+      messageCount: messages.length,
+      localStorageKey: chatKey,
+      existingKeys: Object.keys(localStorage).filter(k => k.startsWith('matchagig_chat_'))
+    });
   } catch (error) {
     console.error('❌ Failed to save chat history:', error);
   }
@@ -226,9 +234,17 @@ function loadChatHistory(candidateId) {
   try {
     const chatKey = `matchagig_chat_${candidateId}`;
     const stored = localStorage.getItem(chatKey);
+    
+    // Debug: Log what's being loaded
+    console.log('📱 Chat History Load:', {
+      candidateId,
+      localStorageKey: chatKey,
+      found: !!stored,
+      messageCount: stored ? JSON.parse(stored).length : 0
+    });
+    
     if (stored) {
       const messages = JSON.parse(stored);
-      console.log('📱 Chat history loaded for candidate:', candidateId, 'Messages:', messages.length);
       return messages;
     }
   } catch (error) {
@@ -247,6 +263,34 @@ function clearChatHistory(candidateId) {
     console.error('❌ Failed to clear chat history:', error);
   }
 }
+
+// Function to get current candidate's messages
+function getCurrentCandidateMessages() {
+  if (!state.selectedCandidateId) return [];
+  if (!state.chatHistory[state.selectedCandidateId]) {
+    state.chatHistory[state.selectedCandidateId] = [];
+  }
+  return state.chatHistory[state.selectedCandidateId];
+}
+
+// Function to add message to specific candidate's history
+function addMessageToCandidate(candidateId, role, content) {
+  if (!state.chatHistory[candidateId]) {
+    state.chatHistory[candidateId] = [];
+  }
+  state.chatHistory[candidateId].push({ role, content });
+  
+  // Save to localStorage
+  saveChatHistory(candidateId, state.chatHistory[candidateId]);
+  
+  // If this is the currently selected candidate, also update the UI
+  if (candidateId === state.selectedCandidateId) {
+    appendMsg(chatLog, role, content);
+  }
+}
+
+// Make function available globally for chat.js
+window.addMessageToCandidate = addMessageToCandidate;
 
 // --- Event Listeners ---
 
@@ -312,11 +356,11 @@ async function loadStoredCandidates() {
     const allRecords = await getAllResumes();
     
     if (allRecords && allRecords.length > 0) {
-      console.log('Loaded records from IndexedDB:', allRecords);
+      console.log('📱 Loading', allRecords.length, 'candidates from IndexedDB...');
       
       // Reconstruct the results array from stored data
       const results = allRecords.map(record => createCandidateFromRecord(record));
-      console.log('Reconstructed candidates:', results);
+      console.log('✅ Reconstructed', results.length, 'candidates');
       
       state.candidates = results;
       
@@ -333,23 +377,27 @@ async function loadStoredCandidates() {
         console.error('❌ Failed to restore JD hash from localStorage:', error);
       }
       
-              // Make sure DOM is ready before rendering
-        if (listEl && statusEl) {
-          renderList(listEl, results, onSelectCandidate);
-          setStatus(statusEl, `Loaded ${results.length} stored candidate(s).`);
-          
-          // Check if we have a stored JD hash
-          if (state.jdHash) {
-            // JD status is hidden in demo mode
-          }
-          
-          // Initialize chat
-          chatLog.innerHTML = '';
-          state.messages = [];
-          state.currentCandidate = null;
-        } else {
-          setTimeout(loadStoredCandidates, 100);
+      // Make sure DOM is ready before rendering
+      if (listEl && statusEl) {
+        renderList(listEl, results, onSelectCandidate);
+        setStatus(statusEl, `Loaded ${results.length} stored candidate(s).`);
+        
+        // Check if we have a stored JD hash
+        if (state.jdHash) {
+          // JD status is hidden in demo mode
         }
+        
+        // Initialize chat
+        chatLog.innerHTML = '';
+        state.currentCandidate = null;
+        
+        // Auto-generate summaries for top 5 candidates
+        if (state.jdHash && results.length > 0) {
+          generateAutoSummaries(results);
+        }
+      } else {
+        setTimeout(loadStoredCandidates, 100);
+      }
     }
   } catch (error) {
     console.error('❌ Error loading stored candidates:', error);
@@ -374,6 +422,15 @@ async function checkAndSkipLanding() {
     const storedJdHash = localStorage.getItem('matchagig_jdHash');
     const storedJdTextSnapshot = localStorage.getItem('matchagig_jdTextSnapshot');
     const allRecords = await getAllResumes();
+    
+    // Debug: Log what data is found
+    console.log('🔄 State Restoration Check:', {
+      hasJdHash: !!storedJdHash,
+      hasJdText: !!storedJdTextSnapshot,
+      hasRecords: !!allRecords,
+      recordCount: allRecords?.length || 0,
+      localStorageKeys: Object.keys(localStorage).filter(k => k.startsWith('matchagig'))
+    });
     
     if (storedJdHash && allRecords && allRecords.length > 0) {
       console.log('🚀 Found existing data, skipping to main interface');
@@ -426,6 +483,11 @@ async function checkAndSkipLanding() {
       
       // Load the stored data
       await loadStoredCandidates();
+      
+      // Auto-generate summaries for top 5 candidates if we have JD hash
+      if (state.jdHash && state.candidates.length > 0) {
+        generateAutoSummaries(state.candidates);
+      }
     } else {
       console.log('📱 No existing data found, showing landing page');
     }
@@ -468,8 +530,6 @@ async function onSelectCandidate(e) {
     setStatus(statusEl, 'Candidate not found in state.'); 
     return; 
   }
-  
-  console.log('✅ Found candidate:', candidate);
 
   // Get the full record from IndexedDB for additional data
   const rec = await getResume(rid);
@@ -479,43 +539,34 @@ async function onSelectCandidate(e) {
     return; 
   }
   
-  console.log('✅ Found record in IndexedDB:', rec);
-
-  // Reconstruct objectUrl from stored fileData if needed
-  if (rec.fileData && !rec.objectUrl) {
-    try {
-      const blob = new Blob([rec.fileData], { type: rec.fileType || 'application/pdf' });
-      rec.objectUrl = URL.createObjectURL(blob);
-      console.log('🔄 Reconstructed objectUrl from fileData:', rec.objectUrl);
-    } catch (error) {
-      console.error('❌ Failed to reconstruct objectUrl:', error);
-    }
-  }
-
   // Set current candidate for chat
   state.currentCandidate = rec;
-  state.messages = []; // start a fresh chat per candidate
-  chatLog.innerHTML = '';
-
-  // Set the selected candidate in state
   state.selectedCandidateId = rid;
 
   // Load chat history for this candidate
   const candidateChatHistory = loadChatHistory(rid);
-  state.messages = candidateChatHistory;
+  if (!state.chatHistory[rid]) {
+    state.chatHistory[rid] = [];
+  }
+  state.chatHistory[rid] = candidateChatHistory;
   
   // Update the PDF viewer
-  if (rec.objectUrl) {
-    pdfFrame.src = rec.objectUrl;
-    console.log('📄 PDF loaded:', rec.objectUrl);
+  if (candidate.objectUrl) {
+    // Debug: Log PDF loading details
+    console.log('🔍 PDF Loading for candidate:', rid, {
+      candidateObjectUrl: candidate.objectUrl,
+      candidateKeys: Object.keys(candidate),
+      pdfFrameState: {
+        src: pdfFrame.src,
+        dimensions: { width: pdfFrame.offsetWidth, height: pdfFrame.offsetHeight }
+      }
+    });
+    
+    pdfFrame.src = candidate.objectUrl;
+    console.log('📄 PDF loaded:', candidate.objectUrl);
   } else {
     pdfFrame.src = '';
-    console.warn('⚠️ No objectUrl for PDF:', rec);
-    console.log('🔍 Full record object:', rec);
-    console.log('🔍 Record keys:', Object.keys(rec));
-    if (rec.meta) {
-      console.log('🔍 Meta keys:', Object.keys(rec.meta));
-    }
+    console.warn('⚠️ No objectUrl for PDF:', candidate);
   }
 
   viewerTitle.textContent = candidate.email || candidate.filename || candidate.resumeId;
@@ -524,22 +575,20 @@ async function onSelectCandidate(e) {
   jdTextDisplay.style.display = 'none';
   pdfFrame.style.display = 'block';
   updateJdBtn.style.display = 'none';
-  
-  // Use the reconstructed objectUrl for PDF preview
-  // pdfFrame.src = candidate.objectUrl; // Assuming objectUrl is part of candidate now
 
-  // Clear previous chat messages and start new conversation
+  // Clear chat display and restore this candidate's chat history
   chatLog.innerHTML = '';
   
   // Restore chat history if it exists
   if (candidateChatHistory.length > 0) {
-    console.log('📱 Restoring chat history for candidate:', rid);
+    console.log('📱 Restoring', candidateChatHistory.length, 'messages for candidate:', rid);
     candidateChatHistory.forEach(msg => {
-      appendMsg(chatLog, state, msg.role, msg.content);
+      appendMsg(chatLog, msg.role, msg.content);
     });
   } else {
     // Start fresh conversation with initial assessment
-    appendMsg(chatLog, state, 'assistant', 'Generating initial assessment...');
+    addMessageToCandidate(rid, 'assistant', 'Generating initial assessment...');
+    appendMsg(chatLog, 'assistant', 'Generating initial assessment...');
     
     // Trigger LLM explanation
     console.log('🚀 Calling explainCandidateHandler for:', rec.resumeId);
@@ -557,7 +606,10 @@ async function explainCandidateHandler(rec) {
     
     if (age < maxAge) {
       console.log('✅ Using cached LLM response (age:', age, 'ms)');
-      appendMsg(chatLog, state, 'assistant', rec.llmResponse);
+      addMessageToCandidate(rec.resumeId, 'assistant', rec.llmResponse);
+      if (rec.resumeId === state.selectedCandidateId) {
+        appendMsg(chatLog, 'assistant', rec.llmResponse);
+      }
       return;
     } else {
       console.log('⏰ Cached response expired (age:', age, 'ms)');
@@ -568,14 +620,22 @@ async function explainCandidateHandler(rec) {
   console.log('🔑 Checking JD hash:', state.jdHash);
   if (!state.jdHash) {
     console.error('❌ No JD hash found in state');
-    appendMsg(chatLog, state, 'assistant', '❌ JD Hash required. Please enter a valid JD hash in the hash field above.');
+    const errorMsg = '❌ JD Hash required. Please enter a valid JD hash in the hash field above.';
+    addMessageToCandidate(rec.resumeId, 'assistant', errorMsg);
+    if (rec.resumeId === state.selectedCandidateId) {
+      appendMsg(chatLog, 'assistant', errorMsg);
+    }
     return;
   }
 
   console.log('📝 Resume text length:', rec.canonicalText?.length || 0);
   if (!rec.canonicalText) {
     console.error('❌ No canonical text found in record');
-    appendMsg(chatLog, state, 'assistant', '❌ No resume text found for this candidate.');
+    const errorMsg = '❌ No resume text found for this candidate.';
+    addMessageToCandidate(rec.resumeId, 'assistant', errorMsg);
+    if (rec.resumeId === state.selectedCandidateId) {
+      appendMsg(chatLog, 'assistant', errorMsg);
+    }
     return;
   }
 
@@ -592,7 +652,10 @@ async function explainCandidateHandler(rec) {
     }
 
     // Send the LLM response to chat
-    appendMsg(chatLog, state, 'assistant', result.markdown);
+    addMessageToCandidate(rec.resumeId, 'assistant', result.markdown);
+    if (rec.resumeId === state.selectedCandidateId) {
+      appendMsg(chatLog, 'assistant', result.markdown);
+    }
     
     // Store the LLM response in IndexedDB
     try {
@@ -603,7 +666,11 @@ async function explainCandidateHandler(rec) {
     }
   } catch (error) {
     console.error('❌ API call failed:', error);
-    appendMsg(chatLog, state, 'assistant', '❌ Error: ' + error.message);
+    const errorMsg = '❌ Error: ' + error.message;
+    addMessageToCandidate(rec.resumeId, 'assistant', errorMsg);
+    if (rec.resumeId === state.selectedCandidateId) {
+      appendMsg(chatLog, 'assistant', errorMsg);
+    }
   }
 }
 
@@ -629,11 +696,8 @@ async function processResumes() {
     const data = await bulkZipUpload(zipBlob, jdText, jdHash);
 
     // Debug: Log the full API response
-    console.log('🔍 Full API response from /v1/bulk-zip:', data);
-    console.log('🔍 Data.jd structure:', data.jd);
-    console.log('🔍 Data.jd.roleOrg:', data.jd?.roleOrg);
-    console.log('🔍 Data.jd.roleOrg.title:', data.jd?.roleOrg?.title);
-
+    console.log('🔍 API response received, processing candidates...');
+    
     // Extract job title from the response
     if (data.jd && data.jd.roleOrg && data.jd.roleOrg.title) {
       console.log('🏷️ Job title extracted:', data.jd.roleOrg.title);
@@ -645,7 +709,7 @@ async function processResumes() {
         jobTitleDisplay.textContent = data.jd.roleOrg.title;
       }
     } else {
-      console.log('⚠️ No job title found in response. Data.jd.roleOrg:', data.jd?.roleOrg);
+      console.log('⚠️ No job title found in response');
     }
 
     // Check if backend returned a JD hash from bulk processing
@@ -667,12 +731,6 @@ async function processResumes() {
       console.log('⚠️ No JD hash returned from backend');
     }
 
-    console.log('🔍 Final state after processing:', {
-      jdHash: state.jdHash,
-      jdTextSnapshot: state.jdTextSnapshot,
-      candidatesCount: state.candidates.length
-    });
-
     // 3) Build a quick lookup filename -> File for local preview storage
     const fileMap = createFileMap(selectedFiles);
 
@@ -680,8 +738,6 @@ async function processResumes() {
     for (const row of (data.results || [])) {
       const file = fileMap.get(baseName(row.filename));
       const objectUrl = file ? URL.createObjectURL(file) : '';
-      
-      console.log('Storing record for:', row.filename, 'file:', file, 'objectUrl:', objectUrl);
       
       const record = {
         resumeId: row.resumeId,
@@ -715,11 +771,14 @@ async function processResumes() {
     renderList(listEl, state.candidates, onSelectCandidate);
     
     // Update status with JD hash info if available
-    let statusMsg = `Processed ${state.candidates.length} candidate(s).`;
-    if (data.jdHash) {
-      statusMsg = `Successfully processed ${state.candidates.length} candidate(s).`;
+    if (state.jdHash) {
+      setStatus(statusEl, `✅ ${state.candidates.length} candidates processed. JD hash: ${state.jdHash}`);
+      
+      // Auto-generate summaries for top 5 candidates
+      generateAutoSummaries(state.candidates);
+    } else {
+      setStatus(statusEl, `✅ ${state.candidates.length} candidates processed.`);
     }
-    setStatus(statusEl, statusMsg);
     
   } catch (e) {
     console.error(e);
@@ -769,6 +828,120 @@ updateJdBtn.addEventListener('click', () => {
     alert('Coming in next version!');
   }
 });
+
+// Function to handle job title display click
+function jobTitleDisplayClickHandler() {
+  // Show JD text display and hide PDF frame
+  jdTextDisplay.style.display = 'block';
+  pdfFrame.style.display = 'none';
+  
+  // Update viewer title
+  viewerTitle.textContent = 'Job Description';
+  
+  // Populate JD text content
+  jdTextContent.value = state.jdTextSnapshot || '';
+  
+  // Show update button
+  updateJdBtn.style.display = 'block';
+  
+  console.log('📝 Showing job description text for editing');
+}
+
+// Function to automatically generate summaries for top candidates
+async function generateAutoSummaries(candidates) {
+  // Prevent duplicate generation
+  if (state.autoSummariesGenerated) {
+    console.log('🚫 Auto-summaries already generated, skipping...');
+    return;
+  }
+  
+  const topCandidates = candidates.slice(0, 5); // First 5 candidates
+  console.log('🚀 Auto-generating summaries for top', topCandidates.length, 'candidates');
+  
+  // Set flag to prevent duplicate calls
+  state.autoSummariesGenerated = true;
+  
+  for (const candidate of topCandidates) {
+    const candidateId = candidate.resumeId;
+    
+    // Check if this candidate already has a summary
+    const existingHistory = state.chatHistory[candidateId] || [];
+    const hasSummary = existingHistory.some(msg => 
+      msg.role === 'assistant' && 
+      msg.content !== 'Generating initial assessment...' && // Exclude loading state
+      msg.content !== '❌ Failed to generate assessment:' && // Exclude error state
+      (msg.content.includes('assessment') || 
+       msg.content.includes('summary') || 
+       msg.content.includes('fit') ||
+       msg.content.includes('Technical Sales Representative') || // Look for actual content
+       msg.content.includes('experience') ||
+       msg.content.includes('skills') ||
+       msg.content.includes('background'))
+    );
+    
+    if (!hasSummary) {
+      console.log('📝 Generating auto-summary for candidate:', candidateId);
+      
+      // Add loading message to candidate's history
+      addMessageToCandidate(candidateId, 'assistant', 'Generating initial assessment...');
+      
+      try {
+        // Get the full record from IndexedDB
+        const rec = await getResume(candidateId);
+        if (rec) {
+          // Generate the summary in the background
+          generateCandidateSummary(rec);
+        }
+      } catch (error) {
+        console.error('❌ Error generating auto-summary for candidate:', candidateId, error);
+        addMessageToCandidate(candidateId, 'assistant', '❌ Failed to generate assessment: ' + error.message);
+      }
+    } else {
+      // Debug: Log what summary was found
+      const summaryMsg = existingHistory.find(msg => 
+        msg.role === 'assistant' && 
+        msg.content !== 'Generating initial assessment...' &&
+        msg.content !== '❌ Failed to generate assessment:' &&
+        (msg.content.includes('assessment') || 
+         msg.content.includes('summary') || 
+         msg.content.includes('fit') ||
+         msg.content.includes('Technical Sales Representative') ||
+         msg.content.includes('experience') ||
+         msg.content.includes('skills') ||
+         msg.content.includes('background'))
+      );
+      
+      if (summaryMsg) {
+        console.log('✅ Candidate already has summary:', candidateId, 'Content preview:', summaryMsg.content.substring(0, 50) + '...');
+      } else {
+        console.log('⚠️ Candidate has loading/error state, will regenerate summary:', candidateId);
+      }
+    }
+  }
+}
+
+// Function to generate candidate summary in background
+async function generateCandidateSummary(rec) {
+  try {
+    console.log('🔍 Generating summary for candidate:', rec.resumeId);
+    
+    // Call the LLM API - parameters should be (jdHash, resumeText)
+    const result = await explainCandidate(state.jdHash, rec.canonicalText);
+    
+    // Store the response in the correct candidate's chat history
+    addMessageToCandidate(rec.resumeId, 'assistant', result.markdown);
+    
+    // Store the LLM response in IndexedDB for caching
+    rec.llmResponse = result.markdown;
+    rec.llmResponseTimestamp = Date.now();
+    await putResume(rec);
+    
+    console.log('✅ Summary generated and stored for candidate:', rec.resumeId);
+  } catch (error) {
+    console.error('❌ Error generating summary for candidate:', rec.resumeId, error);
+    addMessageToCandidate(rec.resumeId, 'assistant', '❌ Failed to generate assessment: ' + error.message);
+  }
+}
 
 
 

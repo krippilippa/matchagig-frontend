@@ -28,7 +28,16 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
   
   if (btnExplain) {
     btnExplain.addEventListener('click', () => {
-      appendMsg(chatLog, state, 'user', 'Give me a succinct 30-second assessment of fit.');
+      const message = 'Give me a succinct 30-second assessment of fit.';
+      
+      // Store user message in candidate's chat history
+      if (state.currentCandidate && state.currentCandidate.resumeId) {
+        if (window.addMessageToCandidate) {
+          window.addMessageToCandidate(state.currentCandidate.resumeId, 'user', message);
+        }
+      }
+      
+      appendMsg(chatLog, 'user', message);
       callChat(state, chatLog, jdTextEl); // no mode = general
     });
   }
@@ -36,7 +45,16 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
   modeButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       const mode = btn.getAttribute('data-mode');
-      appendMsg(chatLog, state, 'user', `[${mode}]`);
+      const message = `[${mode}]`;
+      
+      // Store user message in candidate's chat history
+      if (state.currentCandidate && state.currentCandidate.resumeId) {
+        if (window.addMessageToCandidate) {
+          window.addMessageToCandidate(state.currentCandidate.resumeId, 'user', message);
+        }
+      }
+      
+      appendMsg(chatLog, 'user', message);
       callChat(state, chatLog, jdTextEl, mode);
     });
   });
@@ -46,8 +64,38 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
       const text = chatText.value.trim();
       if (!text) return;
       chatText.value = '';
-      appendMsg(chatLog, state, 'user', text);
+      
+      // Store user message in candidate's chat history
+      if (state.currentCandidate && state.currentCandidate.resumeId) {
+        if (window.addMessageToCandidate) {
+          window.addMessageToCandidate(state.currentCandidate.resumeId, 'user', text);
+        }
+      }
+      
+      appendMsg(chatLog, 'user', text);
       callChat(state, chatLog, jdTextEl); // general freeform
+    });
+  }
+  
+  // Add Enter key handler for chat input
+  if (chatText) {
+    chatText.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const text = chatText.value.trim();
+        if (!text) return;
+        chatText.value = '';
+        
+        // Store user message in candidate's chat history
+        if (state.currentCandidate && state.currentCandidate.resumeId) {
+          if (window.addMessageToCandidate) {
+            window.addMessageToCandidate(state.currentCandidate.resumeId, 'user', text);
+          }
+        }
+        
+        appendMsg(chatLog, 'user', text);
+        callChat(state, chatLog, jdTextEl); // general freeform
+      }
     });
   }
   
@@ -56,7 +104,7 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
   console.log('Chat event listeners setup complete');
 }
 
-export function appendMsg(chatLog, state, role, content) {
+export function appendMsg(chatLog, role, content) {
   if (!chatLog) {
     console.error('Chat log element not found');
     return;
@@ -80,52 +128,52 @@ export function appendMsg(chatLog, state, role, content) {
   
   chatLog.appendChild(wrap);
   chatLog.scrollTop = chatLog.scrollHeight;
-  
-  // Keep local history
-  state.messages.push({ role, content });
-  
-  // Save chat history to localStorage if we have a current candidate
-  if (state.currentCandidate && state.currentCandidate.resumeId) {
-    const saveChatHistory = (candidateId, messages) => {
-      try {
-        const chatKey = `matchagig_chat_${candidateId}`;
-        localStorage.setItem(chatKey, JSON.stringify(messages));
-      } catch (error) {
-        console.error('❌ Failed to save chat history:', error);
-      }
-    };
-    
-    saveChatHistory(state.currentCandidate.resumeId, state.messages);
-  }
 }
 
-async function callChat(state, chatLog, jdTextEl, mode) {
-  // Defensive checks
+export async function callChat(state, chatLog, jdTextEl, mode) {
   if (!jdTextEl) {
     console.error('JD text element not found');
-    appendMsg(chatLog, state, 'assistant', 'Error: JD text element not found');
+    appendMsg(chatLog, 'assistant', 'Error: JD text element not found');
     return;
   }
   
   if (!state.currentCandidate) {
-    appendMsg(chatLog, state, 'assistant', 'Please select a candidate first');
+    appendMsg(chatLog, 'assistant', 'Please select a candidate first');
     return;
   }
 
   if (!state.jdHash) {
-    appendMsg(chatLog, state, 'assistant', 'Please set a JD hash first');
+    appendMsg(chatLog, 'assistant', 'Please set a JD hash first');
     return;
   }
 
   const jdHash = state.jdHash;
-  const resumeText = state.currentCandidate?.canonicalText || '';
-  const messages = state.messages;
-
+  const resumeText = state.currentCandidate.canonicalText;
+  const messages = state.chatHistory[state.currentCandidate.resumeId] || [];
+  
   try {
     const md = await chatWithCandidate(jdHash, resumeText, messages, mode);
-    appendMsg(chatLog, state, 'assistant', md);
+    
+    // Store the response in the correct candidate's chat history
+    if (state.currentCandidate && state.currentCandidate.resumeId) {
+      // Import the function from main.js
+      if (window.addMessageToCandidate) {
+        window.addMessageToCandidate(state.currentCandidate.resumeId, 'assistant', md);
+      }
+    }
+    
+    appendMsg(chatLog, 'assistant', md);
   } catch (error) {
-    appendMsg(chatLog, state, 'assistant', error.message);
+    const errorMsg = error.message;
+    
+    // Store the error in the correct candidate's chat history
+    if (state.currentCandidate && state.currentCandidate.resumeId) {
+      if (window.addMessageToCandidate) {
+        window.addMessageToCandidate(state.currentCandidate.resumeId, 'assistant', errorMsg);
+      }
+    }
+    
+    appendMsg(chatLog, 'assistant', errorMsg);
   }
 }
 
