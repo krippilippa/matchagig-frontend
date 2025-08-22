@@ -102,6 +102,10 @@ export async function callChat(state, chatLog, jdTextEl, mode) {
 
   const candidateId = state.currentCandidate.resumeId;
   
+  // Store the candidate ID that this call belongs to - this prevents race conditions
+  const callCandidateId = candidateId;
+  console.log('🔒 Chat call locked to candidate:', callCandidateId);
+  
   // Check if this candidate has been seeded for stateful chat
   if (state.seededCandidates && state.seededCandidates.has(candidateId)) {
     try {
@@ -122,12 +126,13 @@ export async function callChat(state, chatLog, jdTextEl, mode) {
       // Use the new stateful chat API
       const { text: md } = await askCandidate(candidateId, userMessage);
       
-      // Store the response in the correct candidate's chat history
-      if (state.currentCandidate && state.currentCandidate.resumeId) {
-        addMessageToCandidate(state.currentCandidate.resumeId, 'assistant', md);
-      }
+      // Always save the response to the correct candidate's chat history
+      addMessageToCandidate(callCandidateId, 'assistant', md);
       
-      appendMsg(chatLog, 'assistant', md);
+      // Only display if we're still on the same candidate
+      if (state.currentCandidate && state.currentCandidate.resumeId === callCandidateId) {
+        appendMsg(chatLog, 'assistant', md);
+      }
       return;
     } catch (error) {
       console.error('❌ Stateful chat failed, falling back to legacy:', error);
