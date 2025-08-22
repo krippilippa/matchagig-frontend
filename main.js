@@ -6,15 +6,16 @@ import {
   getResume, 
   getAllResumes, 
   clearAllResumes,
-  updateResumeLLMResponse,
   saveJDData,
   loadJDData,
-  clearAllStorage
+  clearAllStorage,
+  markCandidateAsSeeded,
+  isCandidateSeeded,
+  clearAllSeedingStatus
 } from './js/database.js';
 
 import { 
   bulkZipUpload, 
-  explainCandidate,
   seedCandidateThread
 } from './js/api.js';
 
@@ -23,7 +24,6 @@ import {
   appendMsg, 
   resetChatEventListeners,
   addMessageToCandidate,
-  getCandidateMessages,
   loadChatHistoryForCandidate,
   updateChatButtonStates
 } from './js/chat.js';
@@ -184,6 +184,12 @@ async function handleRunMatch() {
     // Trigger the existing upload flow automatically
     await processResumes();
     
+    // Setup chat event listeners AFTER candidates are processed
+    setupChatEventListeners(state, chatLog, chatText, landingJdText);
+    
+    // Initialize chat button states AFTER everything is set up
+    updateChatButtonStates(state);
+    
   } catch (error) {
     console.error('Error during matching:', error);
     setStatus(statusEl, 'Error during matching: ' + error.message);
@@ -199,6 +205,9 @@ async function handleBackToDemo() {
     // Clear all storage using consolidated function
     await clearAllStorage();
     
+    // Clear seeding status for all candidates
+    await clearAllSeedingStatus();
+    
     // Reset state
     state.candidates = [];
     state.jdHash = null;
@@ -208,7 +217,7 @@ async function handleBackToDemo() {
     state.chatHistory = {};
     state.currentCandidate = null;
     state.seededCandidates.clear();
-
+    
     // Clear UI
     clearUI(listEl, pdfFrame, viewerTitle, jdStatusEl, chatLog);
     
@@ -451,8 +460,14 @@ async function onSelectCandidate(e) {
   // Clear chat display and restore this candidate's chat history
   chatLog.innerHTML = '';
   
-  // Seed the candidate thread if not already done
-  if (!state.seededCandidates.has(rid)) {
+  // Check if candidate is already seeded in storage
+  const isAlreadySeeded = await isCandidateSeeded(rid);
+  
+  if (isAlreadySeeded) {
+    console.log('✅ Candidate already seeded in storage:', rid);
+    // Add to in-memory set for consistency
+    state.seededCandidates.add(rid);
+  } else {
     try {
       console.log('🌱 Seeding candidate thread for:', rid);
       console.log('🌱 JD Hash:', state.jdHash);
@@ -462,6 +477,10 @@ async function onSelectCandidate(e) {
       const seedResult = await seedCandidateThread(rid, state.jdHash, rec.canonicalText);
       console.log('🌱 Seed result:', seedResult);
       
+      // Mark as seeded in storage
+      await markCandidateAsSeeded(rid);
+      
+      // Add to in-memory set
       state.seededCandidates.add(rid);
       
       // Add context loaded message
@@ -469,24 +488,15 @@ async function onSelectCandidate(e) {
       addMessageToCandidate(rid, 'assistant', 'Context loaded. Ask me anything.');
       
       console.log('✅ Candidate thread seeded successfully');
-      
-      // Update button states now that candidate is seeded
-      updateChatButtonStates(state);
     } catch (error) {
       console.error('❌ Failed to seed candidate thread:', error);
       appendMsg(chatLog, 'assistant', `Failed to initialize chat: ${error.message}`);
       addMessageToCandidate(rid, 'assistant', `Failed to initialize chat: ${error.message}`);
-      
-      // Fall back to old method
-      if (candidateChatHistory.length === 0) {
-        addMessageToCandidate(rid, 'assistant', 'Generating initial assessment...');
-        appendMsg(chatLog, 'assistant', 'Generating initial assessment...');
-        await explainCandidateHandler(rec);
-      }
     }
-  } else {
-    console.log('✅ Candidate thread already seeded for:', rid);
   }
+  
+  // Update button states AFTER ensuring seededCandidates is updated
+  updateChatButtonStates(state);
   
   // Restore chat history if it exists
   if (candidateChatHistory.length > 0) {
@@ -494,87 +504,9 @@ async function onSelectCandidate(e) {
       appendMsg(chatLog, msg.role, msg.content);
     });
   }
-  
-  // Update chat button states after candidate selection
-  updateChatButtonStates(state);
 }
 
-// LLM explanation handling
-async function explainCandidateHandler(rec) {
-  console.log('🔧 explainCandidateHandler()');
-  // Check if we have a cached LLM response
-  if (rec.llmResponse && rec.llmResponseTimestamp) {
-    const age = Date.now() - rec.llmResponseTimestamp;
-    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-    
-    if (age < maxAge) {
-      console.log('✅ Using cached LLM response (age:', age, 'ms)');
-      addMessageToCandidate(rec.resumeId, 'assistant', rec.llmResponse);
-      if (rec.resumeId === state.selectedCandidateId) {
-        appendMsg(chatLog, 'assistant', rec.llmResponse);
-      }
-      return;
-    } else {
-      console.log('⏰ Cached response expired (age:', age, 'ms)');
-    }
-  }
 
-  if (!state.jdHash) {
-    console.error('❌ No JD hash found in state');
-    const errorMsg = '❌ JD Hash required. Please enter a valid JD hash in the hash field above.';
-    addMessageToCandidate(rec.resumeId, 'assistant', errorMsg);
-    if (rec.resumeId === state.selectedCandidateId) {
-      appendMsg(chatLog, 'assistant', errorMsg);
-    }
-    return;
-  }
-
-  if (!rec.canonicalText) {
-    console.error('❌ No canonical text found in record');
-    const errorMsg = '❌ No resume text found for this candidate.';
-    addMessageToCandidate(rec.resumeId, 'assistant', errorMsg);
-    if (rec.resumeId === state.selectedCandidateId) {
-      appendMsg(chatLog, 'assistant', errorMsg);
-    }
-    return;
-  }
-
-  try {
-    const result = await explainCandidate(state.jdHash, rec.canonicalText);
-    
-    // Adopt the JD hash if backend used/created one
-    if (result.jdHashHeader) {
-      state.jdHash = result.jdHashHeader;
-      state.jdTextSnapshot = landingJdText.value;
-    }
-
-    // Send the LLM response to chat
-    addMessageToCandidate(rec.resumeId, 'assistant', result.markdown);
-    if (rec.resumeId === state.selectedCandidateId) {
-      appendMsg(chatLog, 'assistant', result.markdown);
-    }
-    
-    // Store the LLM response in IndexedDB
-    try {
-      await updateResumeLLMResponse(rec.resumeId, result.markdown);
-    } catch (error) {
-      console.error('❌ Failed to store LLM response:', error);
-    }
-    
-    // Update button states after LLM response
-    updateChatButtonStates(state);
-  } catch (error) {
-    console.error('❌ API call failed:', error);
-    const errorMsg = '❌ Error: ' + error.message;
-    addMessageToCandidate(rec.resumeId, 'assistant', errorMsg);
-    if (rec.resumeId === state.selectedCandidateId) {
-      appendMsg(chatLog, 'assistant', errorMsg);
-    }
-    
-    // Update button states even on error
-    updateChatButtonStates(state);
-  }
-}
 
 
 
@@ -651,6 +583,9 @@ function setupMainInterface() {
   // Switch to main interface
   landingPage.style.display = 'none';
   mainInterface.style.display = 'flex';
+  
+  // Setup chat event listeners for the main interface
+  setupChatEventListeners(state, chatLog, chatText, landingJdText);
   
   // Add click handler for job title display
   if (jobTitleDisplay) {

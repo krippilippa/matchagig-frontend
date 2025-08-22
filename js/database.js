@@ -38,8 +38,11 @@ export async function putResume(record) {
   }
 }
 
-export async function updateResumeLLMResponse(resumeId, llmResponse) {
-  console.log('🔧 updateResumeLLMResponse()', resumeId);
+
+
+// Store seeding status for a candidate
+export async function markCandidateAsSeeded(resumeId) {
+  console.log('🔧 markCandidateAsSeeded()', resumeId);
   try {
     const db = await openDB();
     return new Promise((resolve, reject) => {
@@ -51,9 +54,9 @@ export async function updateResumeLLMResponse(resumeId, llmResponse) {
       getRequest.onsuccess = () => {
         const record = getRequest.result;
         if (record) {
-          // Update the record with the LLM response
-          record.llmResponse = llmResponse;
-          record.llmResponseTimestamp = Date.now();
+          // Update the record with seeding status
+          record.isSeeded = true;
+          record.seededAt = Date.now();
           
           // Put the updated record back
           const putRequest = store.put(record);
@@ -67,8 +70,20 @@ export async function updateResumeLLMResponse(resumeId, llmResponse) {
       tx.onerror = () => reject(tx.error);
     });
   } catch (error) {
-    console.error('❌ updateResumeLLMResponse error:', error);
+    console.error('❌ markCandidateAsSeeded error:', error);
     throw error;
+  }
+}
+
+// Check if a candidate is already seeded
+export async function isCandidateSeeded(resumeId) {
+  console.log('🔧 isCandidateSeeded()', resumeId);
+  try {
+    const record = await getResume(resumeId);
+    return record && record.isSeeded === true;
+  } catch (error) {
+    console.error('❌ isCandidateSeeded error:', error);
+    return false;
   }
 }
 
@@ -230,6 +245,41 @@ export function clearAllStorage() {
     console.log('🗑️ All storage cleared');
   } catch (error) {
     console.error('❌ Failed to clear all storage:', error);
+    throw error;
+  }
+}
+
+// Clear seeding status for all candidates (for demo reset)
+export async function clearAllSeedingStatus() {
+  console.log('🔧 clearAllSeedingStatus()');
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    
+    // Get all records and clear their seeding status
+    const allRecords = await new Promise((resolve, reject) => {
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    
+    // Update each record to remove seeding status
+    for (const record of allRecords) {
+      if (record.isSeeded) {
+        delete record.isSeeded;
+        delete record.seededAt;
+        await new Promise((resolve, reject) => {
+          const putRequest = store.put(record);
+          putRequest.onsuccess = () => resolve();
+          putRequest.onerror = () => reject(putRequest.error);
+        });
+      }
+    }
+    
+    console.log('🗑️ All seeding status cleared');
+  } catch (error) {
+    console.error('❌ Failed to clear seeding status:', error);
     throw error;
   }
 }

@@ -1,6 +1,6 @@
 // Chat functionality and event handling
 
-import { chatWithCandidate, askCandidate } from './api.js';
+import { askCandidate } from './api.js';
 import { saveChatHistory, loadChatHistory } from './database.js';
 
 // Flag to prevent multiple event listener setups
@@ -14,41 +14,17 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
     return;
   }
   
-  const btnExplain = document.getElementById('btnExplain');
   const btnSend = document.getElementById('btnSend');
-  const modeButtons = document.querySelectorAll('#chatActions [data-mode]');
-  
-  if (btnExplain) {
-    btnExplain.addEventListener('click', () => {
-      const message = 'Give me a succinct 30-second assessment of fit.';
-      
-      // Store user message in candidate's chat history
-      if (state.currentCandidate && state.currentCandidate.resumeId) {
-        addMessageToCandidate(state.currentCandidate.resumeId, 'user', message);
-      }
-      
-      appendMsg(chatLog, 'user', message);
-      callChat(state, chatLog, jdTextEl); // no mode = general
-    });
-  }
-  
-  modeButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const mode = btn.getAttribute('data-mode');
-      const message = `[${mode}]`;
-      
-      // Store user message in candidate's chat history
-      if (state.currentCandidate && state.currentCandidate.resumeId) {
-        addMessageToCandidate(state.currentCandidate.resumeId, 'user', message);
-      }
-      
-      appendMsg(chatLog, 'user', message);
-      callChat(state, chatLog, jdTextEl, mode);
-    });
-  });
   
   if (btnSend) {
+    console.log('🔧 Setting up Send button click listener');
     btnSend.addEventListener('click', () => {
+      console.log('🔧 Send button clicked!');
+      console.log('🔍 Current state when Send clicked:', {
+        currentCandidate: state.currentCandidate,
+        seededCandidates: Array.from(state.seededCandidates || [])
+      });
+      
       const text = chatText.value.trim();
       if (!text) return;
       chatText.value = '';
@@ -59,7 +35,7 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
       }
       
       appendMsg(chatLog, 'user', text);
-      callChat(state, chatLog, jdTextEl, text); // Pass text as mode for freeform
+      callChat(state, chatLog, jdTextEl, text);
     });
   }
   
@@ -78,7 +54,7 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
         }
         
         appendMsg(chatLog, 'user', text);
-        callChat(state, chatLog, jdTextEl, text); // Pass text as mode for freeform
+        callChat(state, chatLog, jdTextEl, text);
       }
     });
   }
@@ -116,9 +92,11 @@ export function appendMsg(chatLog, role, content) {
 
 export async function callChat(state, chatLog, jdTextEl, mode) {
   console.log('🔧 callChat()', mode);
-  
-  if (!state.currentCandidate) {
-    appendMsg(chatLog, 'assistant', 'Please select a candidate first');
+
+  // Safety check - this should never happen since buttons are disabled, but let's be safe
+  if (!state.currentCandidate || !state.currentCandidate.resumeId) {
+    console.error('❌ No current candidate when callChat was called');
+    appendMsg(chatLog, 'assistant', 'Error: No candidate selected. Please select a candidate first.');
     return;
   }
 
@@ -130,17 +108,9 @@ export async function callChat(state, chatLog, jdTextEl, mode) {
       console.log('🔄 Using stateful chat for candidate:', candidateId);
       console.log('🔄 Seeded candidates set:', Array.from(state.seededCandidates));
       
-      // For stateful chat, we need to get the user message from the current input
-      // This will be passed as the mode parameter for freeform text, or we can get it from the last message
-      let userMessage;
-      
-      if (mode && mode !== 'interview_questions' && mode !== 'email_candidate' && mode !== 'email_hiring_manager') {
-        // This is freeform text from the user
-        userMessage = mode;
-      } else {
-        // For predefined modes, we need to get the last user message from chat history
-        userMessage = getLastUserMessage(state.chatHistory[candidateId]);
-      }
+      // For stateful chat, the mode parameter now contains the actual question text
+      // from the button clicks, or freeform text from the user input
+      let userMessage = mode;
       
       console.log('🔄 User message for stateful chat:', userMessage);
       
@@ -165,39 +135,9 @@ export async function callChat(state, chatLog, jdTextEl, mode) {
     }
   }
   
-  // Legacy chat method (fallback)
-  console.log('🔄 Using legacy chat method for candidate:', candidateId);
-  
-  // For legacy chat, we need JD hash validation
-  if (!state.jdHash) {
-    appendMsg(chatLog, 'assistant', 'Error: JD hash not found for legacy chat');
-    return;
-  }
-  
-  const jdHash = state.jdHash;
-  const resumeText = state.currentCandidate.canonicalText;
-  // Use existing messages from state if available, otherwise load from storage
-  const messages = getCandidateMessages(state.currentCandidate.resumeId, state.chatHistory[state.currentCandidate.resumeId]);
-  
-  try {
-    const md = await chatWithCandidate(jdHash, resumeText, messages, mode);
-    
-    // Store the response in the correct candidate's chat history
-    if (state.currentCandidate && state.currentCandidate.resumeId) {
-      addMessageToCandidate(state.currentCandidate.resumeId, 'assistant', md);
-    }
-    
-    appendMsg(chatLog, 'assistant', md);
-  } catch (error) {
-    const errorMsg = error.message;
-    
-    // Store the error in the correct candidate's chat history
-    if (state.currentCandidate && state.currentCandidate.resumeId) {
-      addMessageToCandidate(state.currentCandidate.resumeId, 'assistant', errorMsg);
-    }
-    
-    appendMsg(chatLog, 'assistant', errorMsg);
-  }
+  // If we reach here, something went wrong with stateful chat
+  console.error('❌ Stateful chat failed and no fallback available');
+  appendMsg(chatLog, 'assistant', 'Error: Chat system unavailable. Please try refreshing the page.');
 }
 
 export function resetChatEventListeners() {
@@ -232,12 +172,7 @@ export function addMessageToCandidate(candidateId, role, content) {
   return messages;
 }
 
-export function getCandidateMessages(candidateId, existingMessages = null) {
-  console.log('🔧 getCandidateMessages()', candidateId, !!existingMessages);
-  if (!candidateId) return [];
-  if (existingMessages) return existingMessages;
-  return loadChatHistory(candidateId);
-}
+
 
 export function clearCandidateChatHistory(candidateId) {
   console.log('🔧 clearCandidateChatHistory()', candidateId);
@@ -291,28 +226,31 @@ export function updateChatButtonStates(state) {
     return;
   }
   
+  console.log('🔍 Button state debug:', {
+    btnSend: btnSend,
+    chatText: chatText,
+    currentCandidate: state.currentCandidate,
+    seededCandidates: Array.from(state.seededCandidates || [])
+  });
+  
   // Check if we have a current candidate and if it's seeded
   if (state.currentCandidate && state.currentCandidate.resumeId) {
     const candidateId = state.currentCandidate.resumeId;
     const isSeeded = state.seededCandidates && state.seededCandidates.has(candidateId);
     
+    console.log('🔍 Candidate state:', { candidateId, isSeeded });
+    
     if (isSeeded) {
       // Enable chat for seeded candidates
       btnSend.disabled = false;
-      btnSend.style.opacity = '1';
-      btnSend.style.cursor = 'pointer';
       chatText.disabled = false;
-      chatText.style.opacity = '1';
       chatText.placeholder = 'Ask something...';
       
       console.log('✅ Chat enabled for seeded candidate:', candidateId);
     } else {
       // Disable chat for unseeded candidates
       btnSend.disabled = true;
-      btnSend.style.opacity = '0.5';
-      btnSend.style.cursor = 'not-allowed';
       chatText.disabled = true;
-      chatText.style.opacity = '0.5';
       chatText.placeholder = 'Please select a candidate first to enable chat...';
       
       console.log('🚫 Chat disabled for unseeded candidate:', candidateId);
@@ -320,10 +258,7 @@ export function updateChatButtonStates(state) {
   } else {
     // No candidate selected
     btnSend.disabled = true;
-    btnSend.style.opacity = '0.5';
-    btnSend.style.cursor = 'not-allowed';
     chatText.disabled = true;
-    chatText.style.opacity = '0.5';
     chatText.placeholder = 'Please select a candidate first...';
     
     console.log('🚫 Chat disabled - no candidate selected');
