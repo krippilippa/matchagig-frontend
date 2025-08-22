@@ -1,7 +1,7 @@
 // API calls to backend endpoints
+import { getApiUrl, CONFIG } from './config.js';
 
 export async function bulkZipUpload(zipBlob, jdText, jdHash) {
-  console.log('🔧 bulkZipUpload()', !!zipBlob, !!jdText, !!jdHash);
   const form = new FormData();
   form.append('zip', zipBlob, 'resumes.zip');
   if (jdText) form.append('jdText', jdText);
@@ -11,13 +11,13 @@ export async function bulkZipUpload(zipBlob, jdText, jdHash) {
   // Limit return size (optional)
   form.append('topN', '200');
 
-  const resp = await fetch('http://localhost:8787/v1/bulk-zip', { 
+  const resp = await fetch(getApiUrl(CONFIG.ENDPOINTS.BULK_ZIP), { 
     method: 'POST', 
     body: form 
   });
   
   if (!resp.ok) {
-    throw new Error(`/v1/bulk-zip failed: ${resp.status}`);
+    throw new Error(`Bulk upload failed: ${resp.status} - ${resp.statusText}`);
   }
   
   return await resp.json();
@@ -29,9 +29,7 @@ export async function bulkZipUpload(zipBlob, jdText, jdHash) {
 
 // New stateful chat API functions
 export async function seedCandidateThread(candidateId, jdHash, resumeText) {
-  console.log('🔧 seedCandidateThread()', candidateId, jdHash, resumeText?.length);
-  
-  const r = await fetch('http://localhost:8787/v1/chat/seed', {
+  const r = await fetch(getApiUrl(CONFIG.ENDPOINTS.CHAT_SEED), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ candidateId, jdHash, resumeText })
@@ -39,16 +37,14 @@ export async function seedCandidateThread(candidateId, jdHash, resumeText) {
   
   if (!r.ok) {
     const errorData = await r.json().catch(() => ({}));
-    throw new Error(errorData?.message || `Seed failed: ${r.status}`);
+    throw new Error(errorData?.message || `Chat initialization failed: ${r.status}`);
   }
   
   return r.json(); // { ok: true, previousResponseId }
 }
 
 export async function askCandidate(candidateId, text) {
-  console.log('🔧 askCandidate()', candidateId, text?.length);
-  
-  const r = await fetch('http://localhost:8787/v1/chat/ask', {
+  const r = await fetch(getApiUrl(CONFIG.ENDPOINTS.CHAT_ASK), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ candidateId, text })
@@ -56,7 +52,7 @@ export async function askCandidate(candidateId, text) {
   
   if (!r.ok) {
     const e = await r.json().catch(() => ({}));
-    throw new Error(e?.message || `Ask failed: ${r.status}`);
+    throw new Error(e?.message || `Chat request failed: ${r.status}`);
   }
   
   return r.json(); // { text, previousResponseId }

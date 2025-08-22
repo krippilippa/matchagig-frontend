@@ -13,6 +13,7 @@ import {
   isCandidateSeeded,
   clearAllSeedingStatus
 } from './js/database.js';
+import { CONFIG } from './js/config.js';
 
 import { 
   bulkZipUpload, 
@@ -92,10 +93,9 @@ let selectedFiles = [];  // File[]
 // ============================================================================
 
 function setupEventListeners() {
-  console.log('🔧 setupEventListeners()');
   // Landing page events
   uploadArea.addEventListener('click', handleUploadClick);
-  uploadArea.addEventListener('dragover', handleDragOver);
+  uploadArea.addEventListener('dragOver', handleDragOver);
   uploadArea.addEventListener('dragleave', handleDragLeave);
   uploadArea.addEventListener('drop', handleFileDrop);
   landingPdfInput.addEventListener('change', handleFileSelect);
@@ -116,24 +116,20 @@ function setupEventListeners() {
 
 // Landing page event handlers
 function handleUploadClick() {
-  console.log('🔧 handleUploadClick()');
   landingPdfInput.click();
 }
 
 function handleDragOver(e) {
-  console.log('🔧 handleDragOver()');
   e.preventDefault();
   uploadArea.style.borderColor = '#666';
 }
 
 function handleDragLeave(e) {
-  console.log('🔧 handleDragLeave()');
   e.preventDefault();
   uploadArea.style.borderColor = '#ccc';
 }
 
 function handleFileDrop(e) {
-  console.log('🔧 handleFileDrop()');
   e.preventDefault();
   uploadArea.style.borderColor = '#ccc';
   
@@ -145,13 +141,11 @@ function handleFileDrop(e) {
 }
 
 function handleFileSelect(e) {
-  console.log('🔧 handleFileSelect()');
   const files = Array.from(e.target.files || []).filter(f => /\.pdf$/i.test(f.name));
   updateUploadStatus(files.length);
 }
 
 async function handleRunMatch() {
-  console.log('🔧 handleRunMatch()');
   const files = landingPdfInput.files;
   const jdText = landingJdText.value.trim();
   
@@ -191,7 +185,6 @@ async function handleRunMatch() {
     updateChatButtonStates(state);
     
   } catch (error) {
-    console.error('Error during matching:', error);
     setStatus(statusEl, 'Error during matching: ' + error.message);
   } finally {
     runMatchBtn.disabled = false;
@@ -200,7 +193,6 @@ async function handleRunMatch() {
 }
 
 async function handleBackToDemo() {
-  console.log('🔧 handleBackToDemo()');
   try {
     // Clear all storage using consolidated function
     await clearAllStorage();
@@ -233,22 +225,18 @@ async function handleBackToDemo() {
     landingJdText.value = '';
     updateUploadStatus(0);
     
-    console.log('🔄 Back to Demo: All storage cleared and UI reset.');
   } catch (error) {
-    console.error('❌ Error clearing storage or resetting UI:', error);
     alert('Error resetting demo: ' + error.message);
   }
 }
 
 // Main interface event handlers
 function handlePdfInputChange(e) {
-  console.log('🔧 handlePdfInputChange()');
   selectedFiles = Array.from(e.target.files || []).filter(f => /\.pdf$/i.test(f.name));
   setStatus(statusEl, `${selectedFiles.length} PDF(s) ready`);
 }
 
 function handleJdHashInput() {
-  console.log('🔧 handleJdHashInput()');
   const hash = jdHashEl.value.trim();
   if (hash) {
     state.jdHash = hash;
@@ -260,7 +248,6 @@ function handleJdHashInput() {
 }
 
 function handleJobTitleClick() {
-  console.log('🔧 handleJobTitleClick()');
   if (state.jdTextSnapshot && state.jdTextSnapshot.trim()) {
     // Show JD text view
     jdTextDisplay.style.display = 'block';
@@ -271,13 +258,11 @@ function handleJobTitleClick() {
     // Populate the JD text content
     jdTextContent.value = state.jdTextSnapshot;
   } else {
-    console.log('⚠️ No JD text available to display');
     alert('No job description text available to display.');
   }
 }
 
 function handleJdTextChange() {
-  console.log('🔧 handleJdTextChange()');
   const currentText = jdTextContent.value.trim();
   const originalText = state.jdTextSnapshot.trim();
   
@@ -291,7 +276,6 @@ function handleJdTextChange() {
 }
 
 function handleUpdateJdClick() {
-  console.log('🔧 handleUpdateJdClick()');
   if (!updateJdBtn.disabled) {
     alert('Coming in next version!');
   }
@@ -303,7 +287,6 @@ function handleUpdateJdClick() {
 
 // Upload status management
 function updateUploadStatus(fileCount) {
-  console.log('🔧 updateUploadStatus()', fileCount);
   if (fileCount > 0) {
     uploadArea.innerHTML = `<strong>${fileCount} PDF file(s) selected</strong><br>Ready to process`;
     uploadArea.style.borderColor = '#4CAF50';
@@ -315,7 +298,6 @@ function updateUploadStatus(fileCount) {
 
 // Resume processing
 async function processResumes() {
-  console.log('🔧 processResumes()');
   if (!selectedFiles.length) { 
     setStatus(statusEl, 'Select PDFs first.'); 
     return; 
@@ -354,7 +336,7 @@ async function processResumes() {
       try {
         saveJDData(data.jdHash, state.jdTextSnapshot, state.jobTitle);
       } catch (error) {
-        console.error('❌ Failed to store JD data:', error);
+        // Silently handle storage errors
       }
     }
 
@@ -407,7 +389,6 @@ async function processResumes() {
     }
     
   } catch (e) {
-    console.error(e);
     setStatus(statusEl, e.message || 'Failed.');
     throw e;
   }
@@ -415,13 +396,11 @@ async function processResumes() {
 
 // Candidate selection and management
 async function onSelectCandidate(e) {
-  console.log('🔧 onSelectCandidate()');
   const rid = e.currentTarget.dataset.resumeId;
   
   // Find the candidate in our reconstructed state
   const candidate = state.candidates.find(c => c.resumeId === rid);
   if (!candidate) { 
-    console.error('❌ Candidate not found in state:', rid);
     setStatus(statusEl, 'Candidate not found in state.'); 
     return; 
   }
@@ -429,7 +408,6 @@ async function onSelectCandidate(e) {
   // Get the full record from IndexedDB for additional data
   const rec = await getResume(rid);
   if (!rec) { 
-    console.error('❌ Not found in IndexedDB:', rid);
     setStatus(statusEl, 'Not found in IndexedDB.'); 
     return; 
   }
@@ -450,7 +428,6 @@ async function onSelectCandidate(e) {
     pdfFrame.src = candidate.objectUrl;
   } else {
     pdfFrame.src = '';
-    console.warn('⚠️ No objectUrl for PDF:', candidate);
   }
 
   viewerTitle.textContent = candidate.email || candidate.filename || candidate.resumeId;
@@ -467,18 +444,13 @@ async function onSelectCandidate(e) {
   const isAlreadySeeded = await isCandidateSeeded(rid);
   
   if (isAlreadySeeded) {
-    console.log('✅ Candidate already seeded in storage:', rid);
     // Add to in-memory set for consistency
     state.seededCandidates.add(rid);
   } else {
     try {
-      console.log('🌱 Seeding candidate thread for:', rid);
-      console.log('🌱 JD Hash:', state.jdHash);
-      console.log('🌱 Resume text length:', rec.canonicalText?.length);
       appendMsg(chatLog, 'assistant', 'Initializing chat context...');
       
       const seedResult = await seedCandidateThread(rid, state.jdHash, rec.canonicalText);
-      console.log('🌱 Seed result:', seedResult);
       
       // Mark as seeded in storage
       await markCandidateAsSeeded(rid);
@@ -490,9 +462,7 @@ async function onSelectCandidate(e) {
       appendMsg(chatLog, 'assistant', 'Context loaded. Ask me anything.');
       addMessageToCandidate(rid, 'assistant', 'Context loaded. Ask me anything.');
       
-      console.log('✅ Candidate thread seeded successfully');
     } catch (error) {
-      console.error('❌ Failed to seed candidate thread:', error);
       appendMsg(chatLog, 'assistant', `Failed to initialize chat: ${error.message}`);
       addMessageToCandidate(rid, 'assistant', `Failed to initialize chat: ${error.message}`);
     }
@@ -517,16 +487,12 @@ async function onSelectCandidate(e) {
 
 // Data loading and state restoration
 async function loadStoredCandidates() {
-  console.log('🔧 loadStoredCandidates()');
   try {
     const allRecords = await getAllResumes();
     
     if (allRecords && allRecords.length > 0) {
-      //console.log('📱 Loading', allRecords.length, 'candidates from IndexedDB...');
-      
       // Reconstruct the results array from stored data
       const results = allRecords.map(record => createCandidateFromRecord(record));
-      //console.log('✅ Reconstructed', results.length, 'candidates');
       
       state.candidates = results;
       
@@ -546,7 +512,7 @@ async function loadStoredCandidates() {
       }
     }
   } catch (error) {
-    console.error('❌ Error loading stored candidates:', error);
+    // Silently handle loading errors
   }
 }
 
@@ -558,25 +524,18 @@ async function loadStoredCandidates() {
 
 // Simple check if we should skip landing page
 function checkIfShouldSkipLanding() {
-  console.log('🔧 checkIfShouldSkipLanding()');
-  
   try {
     const jdData = loadJDData();
     const hasJdHash = !!(jdData.jdHash);
     
-    console.log('📱 Landing check:', { hasJdHash });
-    
     return hasJdHash;
   } catch (error) {
-    console.error('❌ Error checking landing state:', error);
     return false;
   }
 }
 
 // Setup main interface (candidates list, PDF viewer, chat)
 function setupMainInterface() {
-  console.log('🔧 setupMainInterface()');
-  
   // Setup all event listeners
   setupEventListeners();
   
@@ -586,9 +545,6 @@ function setupMainInterface() {
   // Switch to main interface
   landingPage.style.display = 'none';
   mainInterface.style.display = 'flex';
-  
-  // Setup chat event listeners for the main interface
-  setupChatEventListeners(state, chatLog, chatText, landingJdText);
   
   // Add click handler for job title display
   if (jobTitleDisplay) {
@@ -601,8 +557,6 @@ function setupMainInterface() {
 
 // Setup landing page interface
 function setupLandingInterface() {
-  console.log('🔧 setupLandingInterface()');
-  
   // Setup all event listeners
   setupEventListeners();
   
@@ -613,8 +567,6 @@ function setupLandingInterface() {
 
 // Load existing data for main interface
 async function loadExistingData() {
-  console.log('🔧 loadExistingData()');
-  
   try {
     // Get JD data from storage (we already know it exists)
     const jdData = loadJDData();
@@ -636,13 +588,13 @@ async function loadExistingData() {
         }
       }
       
-      if (jobTitle) {
-        state.jobTitle = jobTitle;
-        const jobTitleDisplay = document.getElementById('jobTitleDisplay');
-        if (jobTitleDisplay) {
-          jobTitleDisplay.textContent = jobTitle;
-        }
-      } else {
+              if (jobTitle) {
+          state.jobTitle = jobTitle;
+          const jobTitleDisplay = document.getElementById('jobTitleDisplay');
+          if (jobTitleDisplay) {
+            jobTitleDisplay.textContent = jobTitle;
+          }
+        } else {
         state.jobTitle = 'No job title available';
       }
     } else {
@@ -656,13 +608,11 @@ async function loadExistingData() {
     updateChatButtonStates(state);
     
   } catch (error) {
-    console.error('❌ Error loading existing data:', error);
+    // Silently handle loading errors
   }
 }
 
 function initializeApp() {
-  console.log('🔧 initializeApp()');
-  
   // 1. Simple check if we should skip landing
   const shouldSkipLanding = checkIfShouldSkipLanding();
   
