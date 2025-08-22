@@ -4,8 +4,8 @@
 export const CONFIG = {
   // Backend API base URL
   // For local development: 'http://localhost:8787'
-  // For production: 'https://your-backend-domain.com'
-  BACKEND_URL: 'http://localhost:8787',
+  // For production: 'https://matchagig-backend-production.up.railway.app'
+  BACKEND_URL: 'https://matchagig-backend-production.up.railway.app',
   
   // API endpoints
   ENDPOINTS: {
