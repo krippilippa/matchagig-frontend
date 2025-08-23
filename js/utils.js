@@ -22,7 +22,11 @@ export function renderList(listEl, rows, onSelectCandidate) {
     const div = document.createElement('div');
     div.className = 'row';
     div.dataset.resumeId = r.resumeId;
-    div.innerHTML = `<span>${label}</span><span>${fmtCos(r.cosine)}</span>`;
+    div.innerHTML = `
+      <div class="progress-dot" data-resume-id="${r.resumeId}"></div>
+      <span>${label}</span>
+      <span>${fmtCos(r.cosine)}</span>
+    `;
     
     // Add click event listener
     div.addEventListener('click', onSelectCandidate);
@@ -79,6 +83,16 @@ export function createCandidateFromRecord(record) {
   };
 }
 
+export function updateProgressDot(resumeId, status) {
+  const dot = document.querySelector(`.progress-dot[data-resume-id="${resumeId}"]`);
+  if (dot) {
+    // Remove all status classes first
+    dot.classList.remove('processing', 'extracted', 'failed');
+    // Add the new status class
+    dot.classList.add(status);
+  }
+}
+
 export function updateJDStatus(jdStatusEl, hash, textSnapshot) {
   if (hash) {
     jdStatusEl.textContent = `JD hash set ✓ (${hash})`;
@@ -115,5 +129,16 @@ export function clearUI(listEl, pdfFrame, viewerTitle, jdStatusEl, chatLog) {
   const updateJdBtn = document.getElementById('updateJdBtn');
   if (updateJdBtn) {
     updateJdBtn.style.display = 'none';
+  }
+  
+  // Hide toggle buttons and extracted data display
+  const viewToggleButtons = document.getElementById('viewToggleButtons');
+  if (viewToggleButtons) {
+    viewToggleButtons.style.display = 'none';
+  }
+  
+  const extractedDataDisplay = document.getElementById('extractedDataDisplay');
+  if (extractedDataDisplay) {
+    extractedDataDisplay.style.display = 'none';
   }
 }

@@ -40,7 +40,8 @@ import {
   createFileMap, 
   createCandidateFromRecord, 
   updateJDStatus, 
-  clearUI 
+  clearUI,
+  updateProgressDot
 } from './js/utils.js';
 
 // ============================================================================
@@ -72,6 +73,11 @@ const jobTitleDisplay = $('jobTitleDisplay');
 const jdTextDisplay = $('jdTextDisplay');
 const jdTextContent = $('jdTextContent');
 const updateJdBtn = $('updateJdBtn');
+const viewToggleButtons = $('viewToggleButtons');
+const pdfViewBtn = $('pdfViewBtn');
+const dataViewBtn = $('dataViewBtn');
+const extractedDataDisplay = $('extractedDataDisplay');
+const extractedDataContent = $('extractedDataContent');
 
 // ============================================================================
 // STATE MANAGEMENT
@@ -110,6 +116,8 @@ function setupEventListeners() {
   jobTitleDisplay.addEventListener('click', handleJobTitleClick);
   jdTextContent.addEventListener('input', handleJdTextChange);
   updateJdBtn.addEventListener('click', handleUpdateJdClick);
+  pdfViewBtn.addEventListener('click', handlePdfViewClick);
+  dataViewBtn.addEventListener('click', handleDataViewClick);
 }
 
 // ============================================================================
@@ -251,9 +259,13 @@ function handleJdHashInput() {
 
 function handleJobTitleClick() {
   if (state.jdTextSnapshot && state.jdTextSnapshot.trim()) {
+    // Hide toggle buttons when viewing JD
+    viewToggleButtons.style.display = 'none';
+    
     // Show JD text view
     jdTextDisplay.style.display = 'block';
     pdfFrame.style.display = 'none';
+    extractedDataDisplay.style.display = 'none';
     viewerTitle.textContent = 'Job Description';
     updateJdBtn.style.display = 'block';
     
@@ -281,6 +293,20 @@ function handleUpdateJdClick() {
   if (!updateJdBtn.disabled) {
     alert('Coming in next version!');
   }
+}
+
+function handlePdfViewClick() {
+  // Hide extracted data and JD text, show PDF
+  extractedDataDisplay.style.display = 'none';
+  jdTextDisplay.style.display = 'none';
+  pdfFrame.style.display = 'block';
+}
+
+function handleDataViewClick() {
+  // Hide PDF and JD text, show extracted data
+  pdfFrame.style.display = 'none';
+  jdTextDisplay.style.display = 'none';
+  extractedDataDisplay.style.display = 'block';
 }
 
 // ============================================================================
@@ -385,6 +411,16 @@ async function processResumes() {
     
     renderList(listEl, state.candidates, onSelectCandidate);
     
+    // Set initial progress dot states based on existing extraction status
+    for (const candidate of state.candidates) {
+      const existingRecord = await getResume(candidate.resumeId);
+      if (existingRecord) {
+        updateProgressDot(candidate.resumeId, existingRecord.extractionStatus || 'pending');
+      } else {
+        updateProgressDot(candidate.resumeId, 'pending');
+      }
+    }
+    
     // Update status with JD hash info if available
     if (state.jdHash) {
       setStatus(statusEl, `✅ ${state.candidates.length} candidates processed. JD hash: ${state.jdHash}`);
@@ -404,42 +440,70 @@ async function processResumes() {
 // NEW: Sequential extraction processing
 async function processSequentialExtractions() {
   try {
-    // Get all resumes in ranked order (they're already sorted by cosine score)
-    const allRecords = await getAllResumes();
+    console.log('🔄 Starting sequential extraction process...');
     
-    if (allRecords.length === 0) {
+    // Use state.candidates which are already sorted by cosine score from backend
+    const candidatesToProcess = state.candidates;
+    console.log(`📊 Found ${candidatesToProcess.length} candidates to process`);
+    
+    if (candidatesToProcess.length === 0) {
+      console.log('❌ No candidates found, skipping extraction');
       return;
     }
     
-    // Process each resume sequentially, one by one
-    for (let i = 0; i < allRecords.length; i++) {
-      const resume = allRecords[i];
+    // Process each candidate sequentially, one by one
+    for (let i = 0; i < candidatesToProcess.length; i++) {
+      const candidate = candidatesToProcess[i];
+      console.log(`🔍 Processing candidate ${i + 1}/${candidatesToProcess.length}: ${candidate.resumeId} (${candidate.filename || 'unknown'})`);
       
       try {
+        // Check if this resume already has extracted data
+        const existingRecord = await getResume(candidate.resumeId);
+        if (existingRecord && existingRecord.extractionStatus === 'extracted') {
+          console.log(`⏭️ Skipping ${candidate.resumeId} - already extracted`);
+          // Update dot to show already completed
+          updateProgressDot(candidate.resumeId, 'extracted');
+          continue;
+        }
+        
+        // Update dot to show processing
+        updateProgressDot(candidate.resumeId, 'processing');
+        
         // Extract data for this resume
-        const extractedData = await extractResumeData(resume.canonicalText);
+        const extractedData = await extractResumeData(candidate.canonicalText);
         
         // Update the record with extracted data using the new function
-        await updateExtractionStatus(resume.resumeId, 'extracted', extractedData);
+        await updateExtractionStatus(candidate.resumeId, 'extracted', extractedData);
+        
+        // Update dot to show completed
+        updateProgressDot(candidate.resumeId, 'extracted');
         
       } catch (error) {
+        console.error(`❌ Extraction failed for ${candidate.resumeId}:`, error);
         // Mark as failed but continue with next resume
-        await updateExtractionStatus(resume.resumeId, 'failed');
+        await updateExtractionStatus(candidate.resumeId, 'failed');
+        
+        // Update dot to show failed
+        updateProgressDot(candidate.resumeId, 'failed');
       }
     }
     
+    console.log('🎉 Sequential extraction process completed');
+    
   } catch (error) {
-    // Handle errors silently
+    console.error('💥 Error in sequential extraction process:', error);
   }
 }
 
 // Candidate selection and management
 async function onSelectCandidate(e) {
   const rid = e.currentTarget.dataset.resumeId;
+  console.log(`👤 Candidate selected: ${rid}`);
   
   // Find the candidate in our reconstructed state
   const candidate = state.candidates.find(c => c.resumeId === rid);
   if (!candidate) { 
+    console.error(`❌ Candidate not found in state: ${rid}`);
     setStatus(statusEl, 'Candidate not found in state.'); 
     return; 
   }
@@ -447,6 +511,7 @@ async function onSelectCandidate(e) {
   // Get the full record from IndexedDB for additional data
   const rec = await getResume(rid);
   if (!rec) { 
+    console.error(`❌ Resume not found in IndexedDB: ${rid}`);
     setStatus(statusEl, 'Not found in IndexedDB.'); 
     return; 
   }
@@ -471,9 +536,27 @@ async function onSelectCandidate(e) {
 
   viewerTitle.textContent = candidate.email || candidate.filename || candidate.resumeId;
   
-  // Switch back to PDF view when candidate is selected
+  // Show toggle buttons for candidate view
+  viewToggleButtons.style.display = 'flex';
+  
+  // Check if extracted data exists and show appropriate view
+  if (rec.extractedData) {
+    // Show extracted data by default, hide PDF
+    extractedDataDisplay.style.display = 'block';
+    pdfFrame.style.display = 'none';
+    jdTextDisplay.style.display = 'none';
+    
+    // Display the extracted data as JSON
+    extractedDataContent.textContent = JSON.stringify(rec.extractedData, null, 2);
+  } else {
+    // No extracted data, show PDF by default
+    pdfFrame.style.display = 'block';
+    extractedDataDisplay.style.display = 'none';
+    jdTextDisplay.style.display = 'none';
+  }
+  
+  // Hide JD text display when candidate is selected
   jdTextDisplay.style.display = 'none';
-  pdfFrame.style.display = 'block';
   updateJdBtn.style.display = 'none';
 
   // Clear chat display and restore this candidate's chat history

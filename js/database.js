@@ -80,13 +80,24 @@ export async function isCandidateSeeded(resumeId) {
   }
 }
 
-export async function getResume(resumeId) {
+export async function getResume(resumeId) {  
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readonly');
     const r = tx.objectStore(STORE).get(resumeId);
-    r.onsuccess = () => resolve(r.result || null);
-    r.onerror = () => reject(r.error);
+    r.onsuccess = () => {
+      const result = r.result || null;
+      if (result) {
+        console.log(`✅ Resume found in database: ${resumeId}`);
+      } else {
+        console.log(`❌ Resume not found in database: ${resumeId}`);
+      }
+      resolve(result);
+    };
+    r.onerror = () => {
+      console.error(`💥 Error getting resume from database: ${resumeId}`, r.error);
+      reject(r.error);
+    };
   });
 }
 
@@ -272,9 +283,13 @@ export async function updateExtractionStatus(resumeId, status, extractedData = n
           
           // Put the updated record back
           const putRequest = store.put(record);
-          putRequest.onsuccess = () => resolve();
+          putRequest.onsuccess = () => {
+            console.log(`✅ Successfully updated extraction status for ${resumeId} to ${status}`);
+            resolve();
+          };
           putRequest.onerror = () => reject(putRequest.error);
         } else {
+          console.error(`❌ Record not found for ${resumeId} when trying to update extraction status`);
           reject(new Error('Resume not found'));
         }
       };
@@ -282,6 +297,7 @@ export async function updateExtractionStatus(resumeId, status, extractedData = n
       tx.onerror = () => reject(tx.error);
     });
   } catch (error) {
+    console.error(`💥 Error updating extraction status for ${resumeId}:`, error);
     throw error;
   }
 }
