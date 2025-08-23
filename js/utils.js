@@ -12,18 +12,20 @@ export function fmtCos(x) {
   return (typeof x === 'number') ? x.toFixed(3) : ''; 
 }
 
-export function renderList(listEl, rows, onSelectCandidate) {
+export function renderList(listEl, rows, onSelectCandidate, extractionStatuses = {}) {
   const sorted = rows.slice().sort((a, b) => (b.cosine ?? 0) - (a.cosine ?? 0));
   
   listEl.innerHTML = '';
   
   for (const r of sorted) {
     const label = r.email || baseName(r.filename) || r.resumeId;
+    const extractionStatus = extractionStatuses[r.resumeId] || 'pending';
+    
     const div = document.createElement('div');
     div.className = 'row';
     div.dataset.resumeId = r.resumeId;
     div.innerHTML = `
-      <div class="progress-dot" data-resume-id="${r.resumeId}"></div>
+      <div class="progress-dot ${extractionStatus}" data-resume-id="${r.resumeId}"></div>
       <span>${label}</span>
       <span>${fmtCos(r.cosine)}</span>
     `;

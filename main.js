@@ -409,17 +409,15 @@ async function processResumes() {
       };
     });
     
-    renderList(listEl, state.candidates, onSelectCandidate);
-    
-    // Set initial progress dot states based on existing extraction status
+    // Get extraction statuses for all candidates before rendering
+    const extractionStatuses = {};
     for (const candidate of state.candidates) {
       const existingRecord = await getResume(candidate.resumeId);
-      if (existingRecord) {
-        updateProgressDot(candidate.resumeId, existingRecord.extractionStatus || 'pending');
-      } else {
-        updateProgressDot(candidate.resumeId, 'pending');
-      }
+      extractionStatuses[candidate.resumeId] = existingRecord?.extractionStatus || 'pending';
     }
+    
+    // Render list with correct dot colors from the start
+    renderList(listEl, state.candidates, onSelectCandidate, extractionStatuses);
     
     // Update status with JD hash info if available
     if (state.jdHash) {
@@ -623,7 +621,14 @@ async function loadStoredCandidates() {
       
       // Make sure DOM is ready before rendering
       if (listEl && statusEl) {
-        renderList(listEl, results, onSelectCandidate);
+        // Get extraction statuses for all candidates before rendering
+        const extractionStatuses = {};
+        for (const record of allRecords) {
+          extractionStatuses[record.resumeId] = record.extractionStatus || 'pending';
+        }
+        
+        // Render list with correct dot colors from the start
+        renderList(listEl, results, onSelectCandidate, extractionStatuses);
         setStatus(statusEl, `Loaded ${results.length} stored candidate(s).`);
         
         // Initialize chat
