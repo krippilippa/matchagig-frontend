@@ -553,26 +553,7 @@ async function onSelectCandidate(e) {
   // Clear chat display immediately for clean slate
   chatLog.innerHTML = '';
 
-  // Check if candidate is still being processed
-  if (rec.extractionStatus === 'pending' || rec.extractionStatus === 'processing') {
-    appendMsg(chatLog, 'assistant', 'This candidate is still being processed. Please wait...');
-    
-    // Disable chat
-    const btnSend = document.getElementById('btnSend');
-    const chatText = document.getElementById('chatText');
-    if (btnSend) btnSend.disabled = true;
-    if (chatText) chatText.disabled = true;
-    
-    return; // Don't proceed
-  }
-
-  // Immediately disable chat while loading new candidate
-  updateChatButtonStates(state);
-
-  // Always load fresh chat history for the selected candidate
-  let candidateChatHistory = loadChatHistoryForCandidate(rid);
-  state.chatHistory[rid] = candidateChatHistory;  // Update cache with fresh data
-
+    // ALWAYS set up the UI first (PDF viewer, toggle buttons, etc.)
   // Update the PDF viewer
   if (candidate.objectUrl) {    
     pdfFrame.src = candidate.objectUrl;
@@ -602,8 +583,67 @@ async function onSelectCandidate(e) {
   }
   
   // Hide JD text display when candidate is selected
-jdTextDisplay.style.display = 'none';
-updateJdBtn.style.display = 'none';
+  jdTextDisplay.style.display = 'none';
+  updateJdBtn.style.display = 'none';
+
+  // Always load fresh chat history for the selected candidate
+  let candidateChatHistory = loadChatHistoryForCandidate(rid);
+  state.chatHistory[rid] = candidateChatHistory;  // Update cache with fresh data
+
+  // NOW check processing status and update UI accordingly
+  if (rec.extractionStatus === 'pending' || rec.extractionStatus === 'processing') {
+    // Show appropriate message based on status
+    if (rec.extractionStatus === 'processing') {
+      appendMsg(chatLog, 'assistant', 'This candidate is currently being processed. Please wait...');
+    } else {
+      appendMsg(chatLog, 'assistant', 'This candidate is waiting to be processed. Please wait...');
+    }
+    
+    // Disable chat
+    const btnSend = document.getElementById('btnSend');
+    const chatText = document.getElementById('chatText');
+    if (btnSend) btnSend.disabled = true;
+    if (chatText) chatText.disabled = true;
+    
+    // Disable data view button and show appropriate text
+    const dataViewBtn = document.getElementById('dataViewBtn');
+    if (dataViewBtn) {
+      dataViewBtn.disabled = true;
+      if (rec.extractionStatus === 'processing') {
+        dataViewBtn.innerHTML = '<span class="spinner">⏳</span> Processing...';
+      } else {
+        dataViewBtn.innerHTML = '<span class="spinner">⏳</span> Waiting...';
+      }
+      dataViewBtn.style.opacity = '0.5';
+    }
+    
+    // Enable PDF view button (can still view PDF)
+    const pdfViewBtn = document.getElementById('pdfViewBtn');
+    if (pdfViewBtn) {
+      pdfViewBtn.disabled = false;
+      pdfViewBtn.style.opacity = '1';
+    }
+    
+    // Don't proceed with chat setup, but UI is already set up
+    return;
+  }
+
+  // If we get here, candidate is ready - enable everything
+  const dataViewBtn = document.getElementById('dataViewBtn');
+  if (dataViewBtn) {
+    dataViewBtn.disabled = false;
+    dataViewBtn.innerHTML = 'Data View';
+    dataViewBtn.style.opacity = '1';
+  }
+
+  const pdfViewBtn = document.getElementById('pdfViewBtn');
+  if (pdfViewBtn) {
+    pdfViewBtn.disabled = false;
+    pdfViewBtn.style.opacity = '1';
+  }
+
+  // Immediately disable chat while loading new candidate
+  updateChatButtonStates(state);
   
   // Check if candidate is actually seeded and extracted
   const isActuallySeeded = await isCandidateSeeded(rid);

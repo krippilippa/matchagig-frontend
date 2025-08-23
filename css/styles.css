@@ -394,6 +394,24 @@ html, body { height: 100%; margin: 0; }
 
 .progress-dot.processing {
   background-color: #ff9800; /* Orange */
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* Button states */
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.spinner {
+  display: inline-block;
+  margin-right: 5px;
 }
 
 .progress-dot.processed {
