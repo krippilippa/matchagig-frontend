@@ -530,6 +530,24 @@ async function onSelectCandidate(e) {
   const rid = e.currentTarget.dataset.resumeId;
   console.log(`👤 Candidate selected: ${rid}`);
   
+  // GET THE DOT'S CURRENT STATE FROM THE DOM
+  const dot = document.querySelector(`.progress-dot[data-resume-id="${rid}"]`);
+  let dotStatus = 'pending'; // default
+  
+  if (dot) {
+    if (dot.classList.contains('processing')) {
+      dotStatus = 'processing';
+    } else if (dot.classList.contains('processed')) {
+      dotStatus = 'processed';
+    } else if (dot.classList.contains('failed')) {
+      dotStatus = 'failed';
+    } else {
+      dotStatus = 'pending'; // just has .progress-dot class
+    }
+  }
+  
+  console.log(`Dot status for ${rid}: ${dotStatus}`);
+  
   // Find the candidate in our reconstructed state
   const candidate = state.candidates.find(c => c.resumeId === rid);
   if (!candidate) { 
@@ -553,7 +571,7 @@ async function onSelectCandidate(e) {
   // Clear chat display immediately for clean slate
   chatLog.innerHTML = '';
 
-    // ALWAYS set up the UI first (PDF viewer, toggle buttons, etc.)
+  // ALWAYS set up the UI first (PDF viewer, toggle buttons, etc.)
   // Update the PDF viewer
   if (candidate.objectUrl) {    
     pdfFrame.src = candidate.objectUrl;
@@ -591,9 +609,12 @@ async function onSelectCandidate(e) {
   state.chatHistory[rid] = candidateChatHistory;  // Update cache with fresh data
 
   // NOW check processing status and update UI accordingly
-  if (rec.extractionStatus === 'pending' || rec.extractionStatus === 'processing') {
-    // Show appropriate message based on status
-    if (rec.extractionStatus === 'processing') {
+  // Use the dot's current state from the DOM
+  const displayStatus = dotStatus;
+
+  if (displayStatus === 'pending' || displayStatus === 'processing') {
+    // Show appropriate message based on display status
+    if (displayStatus === 'processing') {
       appendMsg(chatLog, 'assistant', 'This candidate is currently being processed. Please wait...');
     } else {
       appendMsg(chatLog, 'assistant', 'This candidate is waiting to be processed. Please wait...');
@@ -609,7 +630,7 @@ async function onSelectCandidate(e) {
     const dataViewBtn = document.getElementById('dataViewBtn');
     if (dataViewBtn) {
       dataViewBtn.disabled = true;
-      if (rec.extractionStatus === 'processing') {
+      if (displayStatus === 'processing') {
         dataViewBtn.innerHTML = '<span class="spinner">⏳</span> Processing...';
       } else {
         dataViewBtn.innerHTML = '<span class="spinner">⏳</span> Waiting...';
@@ -653,9 +674,16 @@ async function onSelectCandidate(e) {
   // Add to in-memory set for consistency
   state.seededCandidates.add(rid);
   
-  // Add context loaded message FIRST
-  appendMsg(chatLog, 'assistant', 'Context loaded. Ask me anything.');
-  addMessageToCandidate(rid, 'assistant', 'Context loaded. Ask me anything.');
+  // Check if "Context loaded" message already exists in chat history
+  const hasContextMessage = candidateChatHistory.some(msg => 
+    msg.role === 'assistant' && msg.content === 'Context loaded. Ask me anything.'
+  );
+  
+  // Only add context message if it doesn't already exist
+  if (!hasContextMessage) {
+    appendMsg(chatLog, 'assistant', 'Context loaded. Ask me anything.');
+    addMessageToCandidate(rid, 'assistant', 'Context loaded. Ask me anything.');
+  }
   
   // THEN restore chat history if it exists
   if (candidateChatHistory.length > 0) {
