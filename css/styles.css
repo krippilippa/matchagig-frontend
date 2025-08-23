@@ -396,7 +396,7 @@ html, body { height: 100%; margin: 0; }
   background-color: #ff9800; /* Orange */
 }
 
-.progress-dot.extracted {
+.progress-dot.processed {
   background-color: #4caf50; /* Green */
 }
 

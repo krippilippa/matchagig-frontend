@@ -12,6 +12,7 @@ import {
   markCandidateAsSeeded,
   isCandidateSeeded,
   clearAllSeedingStatus,
+  clearCandidateSeedingStatus,
   updateExtractionStatus
 } from './js/database.js';
 import { CONFIG } from './js/config.js';
@@ -314,6 +315,22 @@ function handleDataViewClick() {
 // BUSINESS LOGIC FUNCTIONS
 // ============================================================================
 
+// Helper function to check if a candidate is fully ready (extracted + seeded)
+async function isCandidateFullyReady(resumeId) {
+  try {
+    const record = await getResume(resumeId);
+    if (!record) return false;
+    
+    const isSeeded = await isCandidateSeeded(resumeId);
+    const isExtracted = record.extractionStatus === 'extracted';
+    
+    return isSeeded && isExtracted;
+  } catch (error) {
+    console.error('Error checking candidate readiness:', error);
+    return false;
+  }
+}
+
 // Upload status management
 function updateUploadStatus(fileCount) {
   if (fileCount > 0) {
@@ -460,27 +477,41 @@ async function processSequentialExtractions() {
         const existingRecord = await getResume(candidate.resumeId);
         if (existingRecord && existingRecord.extractionStatus === 'extracted') {
           console.log(`⏭️ Skipping ${candidate.resumeId} - already extracted`);
-          // Update dot to show already completed
-          updateProgressDot(candidate.resumeId, 'extracted');
+                  // Update dot to show already completed
+        updateProgressDot(candidate.resumeId, 'processed');
           continue;
         }
         
         // Update dot to show processing
         updateProgressDot(candidate.resumeId, 'processing');
         
-        // Extract data for this resume
-        const extractedData = await extractResumeData(candidate.canonicalText);
+        // Do BOTH extraction AND seeding in parallel
+        const [extractedData, seedResult] = await Promise.all([
+          extractResumeData(candidate.canonicalText),
+          seedCandidateThread(candidate.resumeId, state.jdHash, candidate.canonicalText)
+        ]);
         
         // Update the record with extracted data using the new function
         await updateExtractionStatus(candidate.resumeId, 'extracted', extractedData);
         
-        // Update dot to show completed
-        updateProgressDot(candidate.resumeId, 'extracted');
+        // Mark as seeded in storage
+        await markCandidateAsSeeded(candidate.resumeId);
+        
+        // Update dot to show completed (both operations done)
+        updateProgressDot(candidate.resumeId, 'processed');
         
       } catch (error) {
-        console.error(`❌ Extraction failed for ${candidate.resumeId}:`, error);
-        // Mark as failed but continue with next resume
+        console.error(`❌ Processing failed for ${candidate.resumeId}:`, error);
+        
+        // Mark extraction as failed
         await updateExtractionStatus(candidate.resumeId, 'failed');
+        
+        // Clear seeding status if it was set
+        try {
+          await clearCandidateSeedingStatus(candidate.resumeId);
+        } catch (seedError) {
+          console.error('Failed to clear seeding status:', seedError);
+        }
         
         // Update dot to show failed
         updateProgressDot(candidate.resumeId, 'failed');
@@ -518,6 +549,19 @@ async function onSelectCandidate(e) {
   // Set current candidate for chat
   state.currentCandidate = rec;
   state.selectedCandidateId = rid;
+
+  // Check if candidate is still being processed
+  if (rec.extractionStatus === 'pending' || rec.extractionStatus === 'processing') {
+    appendMsg(chatLog, 'assistant', 'This candidate is still being processed. Please wait...');
+    
+    // Disable chat
+    const btnSend = document.getElementById('btnSend');
+    const chatText = document.getElementById('chatText');
+    if (btnSend) btnSend.disabled = true;
+    if (chatText) chatText.disabled = true;
+    
+    return; // Don't proceed
+  }
 
   // Immediately disable chat while loading new candidate
   updateChatButtonStates(state);
@@ -561,32 +605,24 @@ async function onSelectCandidate(e) {
   // Clear chat display and restore this candidate's chat history
   chatLog.innerHTML = '';
   
-  // Check if candidate is already seeded in storage
-  const isAlreadySeeded = await isCandidateSeeded(rid);
-  
-  if (isAlreadySeeded) {
+  // Check if candidate is actually seeded and extracted
+  const isActuallySeeded = await isCandidateSeeded(rid);
+  const isActuallyExtracted = rec.extractionStatus === 'extracted';
+
+  if (isActuallySeeded && isActuallyExtracted) {
     // Add to in-memory set for consistency
     state.seededCandidates.add(rid);
+    
+    // Add context loaded message
+    appendMsg(chatLog, 'assistant', 'Context loaded. Ask me anything.');
+    addMessageToCandidate(rid, 'assistant', 'Context loaded. Ask me anything.');
   } else {
-    try {
-      appendMsg(chatLog, 'assistant', 'Initializing chat context...');
-      
-      const seedResult = await seedCandidateThread(rid, state.jdHash, rec.canonicalText);
-      
-      // Mark as seeded in storage
-      await markCandidateAsSeeded(rid);
-      
-      // Add to in-memory set
-      state.seededCandidates.add(rid);
-      
-      // Add context loaded message
-      appendMsg(chatLog, 'assistant', 'Context loaded. Ask me anything.');
-      addMessageToCandidate(rid, 'assistant', 'Context loaded. Ask me anything.');
-      
-    } catch (error) {
-      appendMsg(chatLog, 'assistant', `Failed to initialize chat: ${error.message}`);
-      addMessageToCandidate(rid, 'assistant', `Failed to initialize chat: ${error.message}`);
-    }
+    // Something went wrong during processing
+    appendMsg(chatLog, 'assistant', 'This candidate is not ready for chat yet. Processing may have failed or is still in progress.');
+    
+    // Disable chat for this candidate
+    updateChatButtonStates(state);
+    return; // Don't proceed with chat setup
   }
   
   // Update button states AFTER ensuring seededCandidates is updated

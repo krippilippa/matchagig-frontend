@@ -230,6 +230,39 @@ export function clearAllStorage() {
   }
 }
 
+// Clear seeding status for a specific candidate
+export async function clearCandidateSeedingStatus(resumeId) {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      const store = tx.objectStore(STORE);
+
+      // First get the existing record
+      const getRequest = store.get(resumeId);
+      getRequest.onsuccess = () => {
+        const record = getRequest.result;
+        if (record) {
+          // Remove seeding status
+          delete record.isSeeded;
+          delete record.seededAt;
+          
+          // Put the updated record back
+          const putRequest = store.put(record);
+          putRequest.onsuccess = () => resolve();
+          putRequest.onerror = () => reject(putRequest.error);
+        } else {
+          reject(new Error('Resume not found'));
+        }
+      };
+      getRequest.onerror = () => reject(getRequest.error);
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (error) {
+    throw error;
+  }
+}
+
 // Clear seeding status for all candidates (for demo reset)
 export async function clearAllSeedingStatus() {
   try {

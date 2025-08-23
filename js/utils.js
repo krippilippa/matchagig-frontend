@@ -21,11 +21,14 @@ export function renderList(listEl, rows, onSelectCandidate, extractionStatuses =
     const label = r.email || baseName(r.filename) || r.resumeId;
     const extractionStatus = extractionStatuses[r.resumeId] || 'pending';
     
+    // Map 'extracted' status to 'processed' for display
+    const displayStatus = extractionStatus === 'extracted' ? 'processed' : extractionStatus;
+    
     const div = document.createElement('div');
     div.className = 'row';
     div.dataset.resumeId = r.resumeId;
     div.innerHTML = `
-      <div class="progress-dot ${extractionStatus}" data-resume-id="${r.resumeId}"></div>
+      <div class="progress-dot ${displayStatus}" data-resume-id="${r.resumeId}"></div>
       <span>${label}</span>
       <span>${fmtCos(r.cosine)}</span>
     `;
@@ -89,7 +92,7 @@ export function updateProgressDot(resumeId, status) {
   const dot = document.querySelector(`.progress-dot[data-resume-id="${resumeId}"]`);
   if (dot) {
     // Remove all status classes first
-    dot.classList.remove('processing', 'extracted', 'failed');
+    dot.classList.remove('processing', 'processed', 'failed');
     // Add the new status class
     dot.classList.add(status);
   }
