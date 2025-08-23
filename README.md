@@ -22,6 +22,9 @@ matchagig-frontend/
 ## Features
 
 - **Bulk Resume Processing**: Upload multiple PDFs and process them via bulk-zip endpoint
+- **Resume Data Extraction**: Automatic extraction of structured data from resumes using AI
+- **Smart State Tracking**: Efficient processing that only extracts pending resumes
+- **Sequential Processing**: Resumes are processed one by one in ranked order
 - **Candidate Ranking**: View candidates ranked by cosine similarity scores
 - **PDF Preview**: View uploaded resumes in the browser
 - **LLM Explanations**: Get AI-powered candidate assessments
@@ -47,8 +50,29 @@ export const CONFIG = {
 2. **Job Description**: Paste the job description text and/or enter a JD hash
 3. **Upload Resumes**: Select multiple PDF files
 4. **Process**: Click "Run Match" to process resumes
-5. **Evaluate**: Click on candidates to view PDFs and get AI-powered assessments
-6. **Chat**: Use the chat interface for interactive candidate evaluation
+5. **Extraction**: System automatically extracts structured data from resumes in ranked order
+6. **Evaluate**: Click on candidates to view PDFs and get AI-powered assessments
+7. **Chat**: Use the chat interface for interactive candidate evaluation
+
+## Resume Extraction
+
+The system automatically extracts structured data from resumes using AI:
+
+- **Sequential Processing**: Resumes are processed one by one in semantic ranking order
+- **Smart State Tracking**: Only processes resumes that haven't been extracted yet
+- **Data Storage**: Extracted data is stored locally in IndexedDB for offline access
+- **Progress Tracking**: Each resume gets an extraction status (pending, extracted, failed)
+- **Cost Efficient**: Processing stops when users leave the page
+
+### Extraction Data Structure
+
+Each resume gets structured data including:
+- Basic information (name, email, phone, location)
+- Professional summary
+- Work experience with achievements and technologies
+- Education and certifications
+- Skills categorized by type
+- Projects and languages
 
 ## Dependencies
 
@@ -58,6 +82,7 @@ export const CONFIG = {
 ## Backend Endpoints
 
 - `POST /v1/bulk-zip`: Bulk resume processing
+- `POST /v1/resume/extract`: Resume data extraction (extracts structured data from resume text)
 - `POST /v1/explain-llm`: Generate candidate explanations
 - `POST /v1/chat`: Interactive chat with candidates
 
