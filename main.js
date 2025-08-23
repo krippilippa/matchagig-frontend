@@ -41,7 +41,8 @@ import {
   createCandidateFromRecord, 
   updateJDStatus, 
   clearUI,
-  updateProgressDot
+  updateProgressDot,
+  formatExtractedData
 } from './js/utils.js';
 
 // ============================================================================
@@ -544,8 +545,8 @@ async function onSelectCandidate(e) {
     pdfFrame.style.display = 'none';
     jdTextDisplay.style.display = 'none';
     
-    // Display the extracted data as JSON
-    extractedDataContent.textContent = JSON.stringify(rec.extractedData, null, 2);
+    // Display the extracted data in a nice format
+    extractedDataContent.innerHTML = formatExtractedData(rec.extractedData);
   } else {
     // No extracted data, show PDF by default
     pdfFrame.style.display = 'block';
@@ -730,6 +731,15 @@ async function loadExistingData() {
     
     // Load basic candidate list (names/IDs only, no heavy data)
     await loadStoredCandidates();
+    
+    // Check if any resumes are still pending and resume extraction
+    const allRecords = await getAllResumes();
+    const hasPendingResumes = allRecords.some(record => record.extractionStatus === 'pending');
+    if (hasPendingResumes) {
+      console.log('🔄 Found pending resumes, resuming extraction process...');
+      // Resume extraction process
+      await processSequentialExtractions();
+    }
     
     // Update chat button states after loading data
     updateChatButtonStates(state);

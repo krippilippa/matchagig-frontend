@@ -144,3 +144,19 @@ export function clearUI(listEl, pdfFrame, viewerTitle, jdStatusEl, chatLog) {
     extractedDataDisplay.style.display = 'none';
   }
 }
+
+export function formatExtractedData(data) {
+  if (!data || !data.extraction) {
+    return 'No extracted data available';
+  }
+  
+  const basic = data.extraction.basic || {};
+  
+  return `
+    <h1>${basic.name || 'Name not available'}</h1>
+    <h2>${basic.title || 'Title not available'}</h2>
+    <p>${basic.location || 'Location not available'}</p>
+    <p><strong>${basic.blurb || 'No blurb available'}</strong></p>
+    <p>${basic.summary || 'No summary available'}</p>
+  `;
+}
