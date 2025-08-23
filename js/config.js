@@ -5,13 +5,14 @@ export const CONFIG = {
   // Backend API base URL
   // For local development: 'http://localhost:8787'
   // For production: 'https://matchagig-backend-production.up.railway.app'
-  BACKEND_URL: 'https://matchagig-backend-production.up.railway.app',
+  BACKEND_URL: 'http://localhost:8787',
   
   // API endpoints
   ENDPOINTS: {
     BULK_ZIP: '/v1/bulk-zip',
     CHAT_SEED: '/v1/chat/seed',
-    CHAT_ASK: '/v1/chat/ask'
+    CHAT_ASK: '/v1/chat/ask',
+    RESUME_EXTRACT: '/v1/resume/extract'
   },
   
   // Feature flags

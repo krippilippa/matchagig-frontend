@@ -11,13 +11,15 @@ import {
   clearAllStorage,
   markCandidateAsSeeded,
   isCandidateSeeded,
-  clearAllSeedingStatus
+  clearAllSeedingStatus,
+  updateExtractionStatus
 } from './js/database.js';
 import { CONFIG } from './js/config.js';
 
 import { 
   bulkZipUpload, 
-  seedCandidateThread
+  seedCandidateThread,
+  extractResumeData
 } from './js/api.js';
 
 import { 
@@ -355,6 +357,8 @@ async function processResumes() {
         fileType: file ? file.type : null,
         canonicalText: row.canonicalText || '',
         objectUrl: objectUrl,
+        extractionStatus: 'pending', // Store at top level
+        extractedData: null,         // Store at top level
         meta: {
           resumeId: row.resumeId,
           filename: filename,  // Use stored result
@@ -388,9 +392,49 @@ async function processResumes() {
       setStatus(statusEl, `✅ ${state.candidates.length} candidates processed.`);
     }
     
+    // NEW: Start sequential extraction for all resumes
+    await processSequentialExtractions();
+    
   } catch (e) {
     setStatus(statusEl, e.message || 'Failed.');
     throw e;
+  }
+}
+
+// NEW: Sequential extraction processing
+async function processSequentialExtractions() {
+  try {
+    // Get all resumes in ranked order (they're already sorted by cosine score)
+    const allRecords = await getAllResumes();
+    
+    if (allRecords.length === 0) {
+      return;
+    }
+    
+    // Process each resume sequentially, one by one
+    for (let i = 0; i < allRecords.length; i++) {
+      const resume = allRecords[i];
+      
+      try {
+        // Extract data for this resume
+        const extractedData = await extractResumeData(resume.canonicalText);
+        
+        // Update the record with extracted data using the new function
+        await updateExtractionStatus(resume.resumeId, 'extracted', extractedData);
+        
+        console.log(`✅ Extraction complete for ${resume.meta?.filename || resume.resumeId}`);
+        
+      } catch (error) {
+        console.error(`❌ Extraction failed for ${resume.meta?.filename || resume.resumeId}:`, error);
+        // Mark as failed but continue with next resume
+        await updateExtractionStatus(resume.resumeId, 'failed');
+      }
+    }
+    
+    console.log('✅ All sequential extractions complete');
+    
+  } catch (error) {
+    console.error('Error during sequential extraction:', error);
   }
 }
 
@@ -410,6 +454,14 @@ async function onSelectCandidate(e) {
   if (!rec) { 
     setStatus(statusEl, 'Not found in IndexedDB.'); 
     return; 
+  }
+  
+  // NEW: Console log extraction status and data
+  console.log('Resume Extraction Status:', rec.extractionStatus);
+  if (rec.extractedData && rec.extractedData.basicInfo) {
+    console.log('Extracted Basic Info:', rec.extractedData.basicInfo);
+  } else {
+    console.log('No extracted data available');
   }
   
   // Set current candidate for chat

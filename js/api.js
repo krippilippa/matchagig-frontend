@@ -57,3 +57,17 @@ export async function askCandidate(candidateId, text) {
   
   return r.json(); // { text, previousResponseId }
 }
+
+export async function extractResumeData(canonicalText) {
+  const response = await fetch(getApiUrl(CONFIG.ENDPOINTS.RESUME_EXTRACT), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ canonicalText })
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Extraction failed: ${response.status}`);
+  }
+  
+  return await response.json();
+}

@@ -1,7 +1,7 @@
 // IndexedDB operations for storing resume data
 
 const DB_NAME = 'bulkzip-demo';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Increment version for new schema
 const STORE = 'resumes';
 
 export function openDB() {
@@ -246,6 +246,41 @@ export async function clearAllSeedingStatus() {
       }
     }
     
+  } catch (error) {
+    throw error;
+  }
+}
+
+// NEW: Update extraction status and data for a resume
+export async function updateExtractionStatus(resumeId, status, extractedData = null) {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      const store = tx.objectStore(STORE);
+
+      // First get the existing record
+      const getRequest = store.get(resumeId);
+      getRequest.onsuccess = () => {
+        const record = getRequest.result;
+        if (record) {
+          // Update the record with extraction data
+          record.extractionStatus = status;
+          if (extractedData) {
+            record.extractedData = extractedData;
+          }
+          
+          // Put the updated record back
+          const putRequest = store.put(record);
+          putRequest.onsuccess = () => resolve();
+          putRequest.onerror = () => reject(putRequest.error);
+        } else {
+          reject(new Error('Resume not found'));
+        }
+      };
+      getRequest.onerror = () => reject(getRequest.error);
+      tx.onerror = () => reject(tx.error);
+    });
   } catch (error) {
     throw error;
   }
