@@ -550,6 +550,9 @@ async function onSelectCandidate(e) {
   state.currentCandidate = rec;
   state.selectedCandidateId = rid;
 
+  // Clear chat display immediately for clean slate
+  chatLog.innerHTML = '';
+
   // Check if candidate is still being processed
   if (rec.extractionStatus === 'pending' || rec.extractionStatus === 'processing') {
     appendMsg(chatLog, 'assistant', 'This candidate is still being processed. Please wait...');
@@ -599,41 +602,38 @@ async function onSelectCandidate(e) {
   }
   
   // Hide JD text display when candidate is selected
-  jdTextDisplay.style.display = 'none';
-  updateJdBtn.style.display = 'none';
-
-  // Clear chat display and restore this candidate's chat history
-  chatLog.innerHTML = '';
+jdTextDisplay.style.display = 'none';
+updateJdBtn.style.display = 'none';
   
   // Check if candidate is actually seeded and extracted
   const isActuallySeeded = await isCandidateSeeded(rid);
   const isActuallyExtracted = rec.extractionStatus === 'extracted';
 
   if (isActuallySeeded && isActuallyExtracted) {
-    // Add to in-memory set for consistency
-    state.seededCandidates.add(rid);
-    
-    // Add context loaded message
-    appendMsg(chatLog, 'assistant', 'Context loaded. Ask me anything.');
-    addMessageToCandidate(rid, 'assistant', 'Context loaded. Ask me anything.');
-  } else {
-    // Something went wrong during processing
-    appendMsg(chatLog, 'assistant', 'This candidate is not ready for chat yet. Processing may have failed or is still in progress.');
-    
-    // Disable chat for this candidate
-    updateChatButtonStates(state);
-    return; // Don't proceed with chat setup
-  }
+  // Add to in-memory set for consistency
+  state.seededCandidates.add(rid);
   
-  // Update button states AFTER ensuring seededCandidates is updated
-  updateChatButtonStates(state);
+  // Add context loaded message FIRST
+  appendMsg(chatLog, 'assistant', 'Context loaded. Ask me anything.');
+  addMessageToCandidate(rid, 'assistant', 'Context loaded. Ask me anything.');
   
-  // Restore chat history if it exists
+  // THEN restore chat history if it exists
   if (candidateChatHistory.length > 0) {
     candidateChatHistory.forEach(msg => {
       appendMsg(chatLog, msg.role, msg.content);
     });
   }
+} else {
+  // Something went wrong during processing
+  appendMsg(chatLog, 'assistant', 'This candidate is not ready for chat yet. Processing may have failed or is still in progress.');
+  
+  // Disable chat for this candidate
+  updateChatButtonStates(state);
+  return; // Don't proceed with chat setup
+}
+
+// Update button states AFTER ensuring seededCandidates is updated
+updateChatButtonStates(state);
 }
 
 
