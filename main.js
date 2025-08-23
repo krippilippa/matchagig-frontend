@@ -422,19 +422,14 @@ async function processSequentialExtractions() {
         // Update the record with extracted data using the new function
         await updateExtractionStatus(resume.resumeId, 'extracted', extractedData);
         
-        console.log(`✅ Extraction complete for ${resume.meta?.filename || resume.resumeId}`);
-        
       } catch (error) {
-        console.error(`❌ Extraction failed for ${resume.meta?.filename || resume.resumeId}:`, error);
         // Mark as failed but continue with next resume
         await updateExtractionStatus(resume.resumeId, 'failed');
       }
     }
     
-    console.log('✅ All sequential extractions complete');
-    
   } catch (error) {
-    console.error('Error during sequential extraction:', error);
+    // Handle errors silently
   }
 }
 
@@ -454,14 +449,6 @@ async function onSelectCandidate(e) {
   if (!rec) { 
     setStatus(statusEl, 'Not found in IndexedDB.'); 
     return; 
-  }
-  
-  // NEW: Console log extraction status and data
-  console.log('Resume Extraction Status:', rec.extractionStatus);
-  if (rec.extractedData && rec.extractedData.basicInfo) {
-    console.log('Extracted Basic Info:', rec.extractedData.basicInfo);
-  } else {
-    console.log('No extracted data available');
   }
   
   // Set current candidate for chat
