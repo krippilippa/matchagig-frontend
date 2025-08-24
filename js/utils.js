@@ -9,7 +9,7 @@ export function baseName(path) {
 }
 
 export function fmtCos(x) { 
-  return (typeof x === 'number') ? x.toFixed(3) : ''; 
+  return (typeof x === 'number') ? Math.round(x * 100).toString() : ''; 
 }
 
 export function renderList(listEl, rows, onSelectCandidate, extractionStatuses = {}) {
