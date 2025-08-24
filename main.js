@@ -27,9 +27,9 @@ import {
   setupChatEventListeners, 
   appendMsg, 
   resetChatEventListeners,
-  addMessageToCandidate,
-  loadChatHistoryForCandidate,
-  updateChatButtonStates
+  updateChatButtonStates,
+  sendMessageAndForget,
+  getChatHistory
 } from './js/chat.js';
 
 import { 
@@ -497,6 +497,17 @@ async function processSequentialExtractions() {
         // Mark as seeded in storage
         await markCandidateAsSeeded(candidate.resumeId);
         
+        // NEW: Send initial chat message automatically after successful seeding
+        if (seedResult.ok) {
+          const initialQuestion = "Tell me about your background and experience.";
+          console.log(`💬 Sending initial chat message for ${candidate.resumeId}...`);
+          
+          // Send message without waiting - chat.js handles everything
+          sendMessageAndForget(candidate.resumeId, initialQuestion);
+          
+          console.log(`✅ Initial chat started for ${candidate.resumeId}`);
+        }
+        
         // Update dot to show completed (both operations done)
         updateProgressDot(candidate.resumeId, 'processed', state);
         
@@ -605,7 +616,7 @@ async function onSelectCandidate(e) {
   updateJdBtn.style.display = 'none';
 
   // Always load fresh chat history for the selected candidate
-  let candidateChatHistory = loadChatHistoryForCandidate(rid);
+  let candidateChatHistory = getChatHistory(rid);
   state.chatHistory[rid] = candidateChatHistory;  // Update cache with fresh data
 
   // NOW check processing status and update UI accordingly
@@ -663,9 +674,6 @@ async function onSelectCandidate(e) {
     pdfViewBtn.style.opacity = '1';
   }
 
-  // Immediately disable chat while loading new candidate
-  updateChatButtonStates(state);
-  
   // Check if candidate is actually seeded and extracted
   const isActuallySeeded = await isCandidateSeeded(rid);
   const isActuallyExtracted = rec.extractionStatus === 'extracted';
@@ -674,16 +682,7 @@ async function onSelectCandidate(e) {
   // Add to in-memory set for consistency
   state.seededCandidates.add(rid);
   
-  // Check if "Context loaded" message already exists in chat history
-  const hasContextMessage = candidateChatHistory.some(msg => 
-    msg.role === 'assistant' && msg.content === 'Context loaded. Ask me anything.'
-  );
-  
-  // Only add context message if it doesn't already exist
-  if (!hasContextMessage) {
-    appendMsg(chatLog, 'assistant', 'Context loaded. Ask me anything.');
-    addMessageToCandidate(rid, 'assistant', 'Context loaded. Ask me anything.');
-  }
+
   
   // THEN restore chat history if it exists
   if (candidateChatHistory.length > 0) {

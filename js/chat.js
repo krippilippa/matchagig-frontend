@@ -20,13 +20,13 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
       if (!text) return;
       chatText.value = '';
       
-      // Store user message in candidate's chat history
-      if (state.currentCandidate && state.currentCandidate.resumeId) {
-        addMessageToCandidate(state.currentCandidate.resumeId, 'user', text);
-      }
-      
+      // Display user message immediately
       appendMsg(chatLog, 'user', text);
-      callChat(state, chatLog, jdTextEl, text);
+      
+      // Use the new clean API - it handles storage automatically
+      if (state.currentCandidate && state.currentCandidate.resumeId) {
+        callChat(state, chatLog, jdTextEl, text);
+      }
     });
   }
   
@@ -39,13 +39,13 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
         if (!text) return;
         chatText.value = '';
         
-        // Store user message in candidate's chat history
-        if (state.currentCandidate && state.currentCandidate.resumeId) {
-          addMessageToCandidate(state.currentCandidate.resumeId, 'user', text);
-        }
-        
+        // Display user message immediately
         appendMsg(chatLog, 'user', text);
-        callChat(state, chatLog, jdTextEl, text);
+        
+        // Use the new clean API - it handles storage automatically
+        if (state.currentCandidate && state.currentCandidate.resumeId) {
+          callChat(state, chatLog, jdTextEl, text);
+        }
       }
     });
   }
@@ -103,11 +103,8 @@ export async function callChat(state, chatLog, jdTextEl, mode) {
         return;
       }
       
-      // Use the new stateful chat API
-      const { text: md } = await askCandidate(candidateId, userMessage);
-      
-      // Always save the response to the correct candidate's chat history
-      addMessageToCandidate(callCandidateId, 'assistant', md);
+      // Use the new clean API - sendMessageAndWait handles storage automatically
+      const md = await sendMessageAndWait(candidateId, userMessage);
       
       // Only display if we're still on the same candidate
       if (state.currentCandidate && state.currentCandidate.resumeId === callCandidateId) {
@@ -128,8 +125,8 @@ export function resetChatEventListeners() {
   chatEventListenersSetup = false;
 }
 
-// Chat history management functions
-export function addMessageToCandidate(candidateId, role, content) {
+// Chat history management functions (internal - used by new API functions)
+function addMessageToCandidate(candidateId, role, content) {
   if (!candidateId) {
     return;
   }
@@ -165,16 +162,7 @@ export function clearCandidateChatHistory(candidateId) {
   }
 }
 
-export function loadChatHistoryForCandidate(candidateId) {
-  if (!candidateId) return [];
-  
-  try {
-    const messages = loadChatHistory(candidateId);
-    return messages;
-  } catch (error) {
-    return [];
-  }
-}
+
 
 // Helper function to get the last user message from chat history
 export function getLastUserMessage(messages) {
@@ -189,6 +177,50 @@ export function getLastUserMessage(messages) {
   
   return null;
 }
+
+// NEW: Clean API functions for main.js to use
+export async function sendMessageAndWait(candidateId, message) {
+  try {
+    // Store user message immediately
+    addMessageToCandidate(candidateId, 'user', message);
+    
+    // Send to API and wait for response
+    const { text: aiResponse } = await askCandidate(candidateId, message);
+    
+    // Store AI response
+    addMessageToCandidate(candidateId, 'assistant', aiResponse);
+    
+    return aiResponse;
+  } catch (error) {
+    console.error(`Failed to send message and wait for ${candidateId}:`, error);
+    throw error;
+  }
+}
+
+export function sendMessageAndForget(candidateId, message) {
+  try {
+    // Store user message immediately
+    addMessageToCandidate(candidateId, 'user', message);
+    
+    // Send to API without waiting
+    askCandidate(candidateId, message)
+      .then(response => {
+        // Store AI response when it arrives
+        addMessageToCandidate(candidateId, 'assistant', response.text);
+      })
+      .catch(error => {
+        console.error(`Failed to get response for ${candidateId}:`, error);
+      });
+  } catch (error) {
+    console.error(`Failed to send message for ${candidateId}:`, error);
+  }
+}
+
+export function getChatHistory(candidateId) {
+  return loadChatHistory(candidateId);
+}
+
+
 
 // Update chat button states based on candidate seeding status
 export function updateChatButtonStates(state) {
