@@ -88,13 +88,22 @@ export function createCandidateFromRecord(record) {
   };
 }
 
-export function updateProgressDot(resumeId, status) {
+export function updateProgressDot(resumeId, status, state = null) {
   const dot = document.querySelector(`.progress-dot[data-resume-id="${resumeId}"]`);
   if (dot) {
     // Remove all status classes first
     dot.classList.remove('processing', 'processed', 'failed');
     // Add the new status class
     dot.classList.add(status);
+    
+    // If this candidate is currently selected, simulate a click to refresh the UI
+    if (state && state.selectedCandidateId === resumeId) {
+      // Simulate click on the same candidate to refresh all UI elements
+      const candidateRow = document.querySelector(`.row[data-resume-id="${resumeId}"]`);
+      if (candidateRow) {
+        candidateRow.click();
+      }
+    }
   }
 }
 

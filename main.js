@@ -478,12 +478,12 @@ async function processSequentialExtractions() {
         if (existingRecord && existingRecord.extractionStatus === 'extracted') {
           console.log(`⏭️ Skipping ${candidate.resumeId} - already extracted`);
                   // Update dot to show already completed
-        updateProgressDot(candidate.resumeId, 'processed');
+        updateProgressDot(candidate.resumeId, 'processed', state);
           continue;
         }
         
         // Update dot to show processing
-        updateProgressDot(candidate.resumeId, 'processing');
+        updateProgressDot(candidate.resumeId, 'processing', state);
         
         // Do BOTH extraction AND seeding in parallel
         const [extractedData, seedResult] = await Promise.all([
@@ -498,7 +498,7 @@ async function processSequentialExtractions() {
         await markCandidateAsSeeded(candidate.resumeId);
         
         // Update dot to show completed (both operations done)
-        updateProgressDot(candidate.resumeId, 'processed');
+        updateProgressDot(candidate.resumeId, 'processed', state);
         
       } catch (error) {
         console.error(`❌ Processing failed for ${candidate.resumeId}:`, error);
@@ -514,7 +514,7 @@ async function processSequentialExtractions() {
         }
         
         // Update dot to show failed
-        updateProgressDot(candidate.resumeId, 'failed');
+        updateProgressDot(candidate.resumeId, 'failed', state);
       }
     }
     
