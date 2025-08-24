@@ -6,6 +6,11 @@ import { saveChatHistory, loadChatHistory } from './database.js';
 // Flag to prevent multiple event listener setups
 let chatEventListenersSetup = false;
 
+// Simple state tracking
+const pendingMessages = new Map(); // candidateId -> { message, timestamp }
+let currentDisplayedCandidate = null;
+let currentChatLog = null;
+
 export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
   // Prevent multiple setups
   if (chatEventListenersSetup) {
@@ -20,12 +25,9 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
       if (!text) return;
       chatText.value = '';
       
-      // Display user message immediately
-      appendMsg(chatLog, 'user', text);
-      
-      // Use the new clean API - it handles storage automatically
+      // Send message and let the system handle everything
       if (state.currentCandidate && state.currentCandidate.resumeId) {
-        callChat(state, chatLog, jdTextEl, text);
+        sendMessage(state.currentCandidate.resumeId, text);
       }
     });
   }
@@ -39,12 +41,9 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
         if (!text) return;
         chatText.value = '';
         
-        // Display user message immediately
-        appendMsg(chatLog, 'user', text);
-        
-        // Use the new clean API - it handles storage automatically
+        // Send message and let the system handle everything
         if (state.currentCandidate && state.currentCandidate.resumeId) {
-          callChat(state, chatLog, jdTextEl, text);
+          sendMessage(state.currentCandidate.resumeId, text);
         }
       }
     });
@@ -54,7 +53,7 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
   chatEventListenersSetup = true;
 }
 
-export function appendMsg(chatLog, role, content) {
+function appendMsg(chatLog, role, content) {
   if (!chatLog) {
     return;
   }
@@ -79,49 +78,9 @@ export function appendMsg(chatLog, role, content) {
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
-export async function callChat(state, chatLog, jdTextEl, mode) {
-  // Safety check - this should never happen since buttons are disabled, but let's be safe
-  if (!state.currentCandidate || !state.currentCandidate.resumeId) {
-    appendMsg(chatLog, 'assistant', 'Error: No candidate selected. Please select a candidate first.');
-    return;
-  }
 
-  const candidateId = state.currentCandidate.resumeId;
-  
-  // Store the candidate ID that this call belongs to - this prevents race conditions
-  const callCandidateId = candidateId;
-  
-  // Check if this candidate has been seeded for stateful chat
-  if (state.seededCandidates && state.seededCandidates.has(candidateId)) {
-    try {
-      // For stateful chat, the mode parameter now contains the actual question text
-      // from the button clicks, or freeform text from the user input
-      let userMessage = mode;
-      
-      if (!userMessage) {
-        appendMsg(chatLog, 'assistant', 'Error: No user message found for stateful chat');
-        return;
-      }
-      
-      // Use the new clean API - sendMessageAndWait handles storage automatically
-      const md = await sendMessageAndWait(candidateId, userMessage);
-      
-      // Only display if we're still on the same candidate
-      if (state.currentCandidate && state.currentCandidate.resumeId === callCandidateId) {
-        appendMsg(chatLog, 'assistant', md);
-      }
-      return;
-    } catch (error) {
-      appendMsg(chatLog, 'assistant', 'Chat request failed. Please try again.');
-      return;
-    }
-  }
-  
-  // If we reach here, something went wrong with stateful chat
-  appendMsg(chatLog, 'assistant', 'Error: Chat system unavailable. Please try refreshing the page.');
-}
 
-export function resetChatEventListeners() {
+function resetChatEventListeners() {
   chatEventListenersSetup = false;
 }
 
@@ -152,7 +111,7 @@ function addMessageToCandidate(candidateId, role, content) {
 
 
 
-export function clearCandidateChatHistory(candidateId) {
+function clearCandidateChatHistory(candidateId) {
   if (!candidateId) return;
   
   try {
@@ -165,7 +124,7 @@ export function clearCandidateChatHistory(candidateId) {
 
 
 // Helper function to get the last user message from chat history
-export function getLastUserMessage(messages) {
+function getLastUserMessage(messages) {
   if (!messages || messages.length === 0) return null;
   
   // Find the last user message (going backwards through the array)
@@ -178,46 +137,110 @@ export function getLastUserMessage(messages) {
   return null;
 }
 
-// NEW: Clean API functions for main.js to use
-export async function sendMessageAndWait(candidateId, message) {
-  try {
-    // Store user message immediately
-    addMessageToCandidate(candidateId, 'user', message);
-    
-    // Send to API and wait for response
-    const { text: aiResponse } = await askCandidate(candidateId, message);
-    
-    // Store AI response
-    addMessageToCandidate(candidateId, 'assistant', aiResponse);
-    
-    return aiResponse;
-  } catch (error) {
-    console.error(`Failed to send message and wait for ${candidateId}:`, error);
-    throw error;
-  }
-}
 
-export function sendMessageAndForget(candidateId, message) {
-  try {
-    // Store user message immediately
-    addMessageToCandidate(candidateId, 'user', message);
-    
-    // Send to API without waiting
-    askCandidate(candidateId, message)
-      .then(response => {
-        // Store AI response when it arrives
-        addMessageToCandidate(candidateId, 'assistant', response.text);
-      })
-      .catch(error => {
-        console.error(`Failed to get response for ${candidateId}:`, error);
-      });
-  } catch (error) {
-    console.error(`Failed to send message for ${candidateId}:`, error);
-  }
-}
 
-export function getChatHistory(candidateId) {
+
+
+// ============================================================================
+// DATA LAYER - Pure functions that return data
+// ============================================================================
+
+function getChatHistory(candidateId) {
   return loadChatHistory(candidateId);
+}
+
+function isInTransit(candidateId) {
+  return pendingMessages.has(candidateId);
+}
+
+// ============================================================================
+// ACTION LAYER - Functions that change state
+// ============================================================================
+
+export function sendMessage(candidateId, message) {
+  // Store user message
+  addMessageToCandidate(candidateId, 'user', message);
+  
+  // Set transit state
+  pendingMessages.set(candidateId, { message, timestamp: Date.now() });
+  
+  // NEW: Immediately refresh UI to show user message + loading (only if this candidate is currently displayed)
+  if (currentDisplayedCandidate === candidateId && currentChatLog) {
+    console.log(`🔄 Immediate UI refresh for ${candidateId} - showing user message + loading`);
+    refreshChatDisplay(candidateId, currentChatLog);
+  } else {
+    console.log(`⏸️ No immediate UI refresh for ${candidateId} - not currently displayed (current: ${currentDisplayedCandidate})`);
+  }
+  
+  // Send to API
+  askCandidate(candidateId, message)
+    .then(response => {
+      console.log(`✅ AI response received for ${candidateId} - clearing transit state`);
+      
+      // Store AI response
+      addMessageToCandidate(candidateId, 'assistant', response.text);
+      
+      // Clear transit state
+      pendingMessages.delete(candidateId);
+      
+      // Notify UI to refresh
+      notifyMessageReceived(candidateId);
+    })
+    .catch(error => {
+      console.error(`Failed to get response for ${candidateId}:`, error);
+      pendingMessages.delete(candidateId);
+    });
+}
+
+// ============================================================================
+// UI LAYER - Functions that update the display
+// ============================================================================
+
+export function refreshChatDisplay(candidateId, chatLogElement) {
+  // Clear current display
+  chatLogElement.innerHTML = '';
+  
+  // Get fresh data
+  const messages = getChatHistory(candidateId);
+  const inTransit = isInTransit(candidateId);
+  
+  // Display all messages
+  messages.forEach(msg => {
+    appendMsg(chatLogElement, msg.role, msg.content);
+  });
+  
+  // Show transit indicator if needed
+  if (inTransit) {
+    showTransitIndicator(chatLogElement, candidateId);
+  }
+}
+
+function displayStatusMessage(chatLogElement, message) {
+  appendMsg(chatLogElement, 'assistant', message);
+}
+
+// ============================================================================
+// INTERNAL FUNCTIONS
+// ============================================================================
+
+function notifyMessageReceived(candidateId) {
+  // If this candidate is currently displayed, refresh the UI
+  if (currentDisplayedCandidate === candidateId && currentChatLog) {
+    refreshChatDisplay(candidateId, currentChatLog);
+  }
+}
+
+export function setCurrentChatContext(candidateId, chatLogElement) {
+  currentDisplayedCandidate = candidateId;
+  currentChatLog = chatLogElement;
+}
+
+function showTransitIndicator(chatLogElement, candidateId) {
+  const loadingDiv = document.createElement('div');
+  loadingDiv.className = 'assistant loading';
+  loadingDiv.innerHTML = '<span class="spinner">⏳</span> Waiting for response...';
+  loadingDiv.dataset.candidateId = candidateId;
+  chatLogElement.appendChild(loadingDiv);
 }
 
 
@@ -231,26 +254,36 @@ export function updateChatButtonStates(state) {
     return;
   }
   
+  console.log(`🔍 updateChatButtonStates called:`);
+  console.log(`  - state.currentCandidate:`, state.currentCandidate);
+  console.log(`  - state.seededCandidates:`, state.seededCandidates);
+  
   // Check if we have a current candidate and if it's seeded
   if (state.currentCandidate && state.currentCandidate.resumeId) {
     const candidateId = state.currentCandidate.resumeId;
     const isSeeded = state.seededCandidates && state.seededCandidates.has(candidateId);
+    
+    console.log(`  - candidateId: ${candidateId}`);
+    console.log(`  - isSeeded: ${isSeeded}`);
     
     if (isSeeded) {
       // Enable chat for seeded candidates
       btnSend.disabled = false;
       chatText.disabled = false;
       chatText.placeholder = 'Ask something...';
+      console.log(`✅ Chat enabled for ${candidateId}`);
     } else {
       // Disable chat for unseeded candidates
       btnSend.disabled = true;
       chatText.disabled = true;
       chatText.placeholder = 'Please select a candidate first to enable chat...';
+      console.log(`❌ Chat disabled for ${candidateId} - not seeded`);
     }
   } else {
     // No candidate selected
     btnSend.disabled = true;
     chatText.disabled = true;
     chatText.placeholder = 'Please select a candidate first...';
+    console.log(`❌ Chat disabled - no current candidate`);
   }
 }

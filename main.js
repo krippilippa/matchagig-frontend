@@ -25,11 +25,10 @@ import {
 
 import { 
   setupChatEventListeners, 
-  appendMsg, 
-  resetChatEventListeners,
   updateChatButtonStates,
-  sendMessageAndForget,
-  getChatHistory
+  sendMessage,
+  refreshChatDisplay,
+  setCurrentChatContext
 } from './js/chat.js';
 
 import { 
@@ -497,19 +496,31 @@ async function processSequentialExtractions() {
         // Mark as seeded in storage
         await markCandidateAsSeeded(candidate.resumeId);
         
+        // NEW: Update in-memory state for button state management
+        state.seededCandidates.add(candidate.resumeId);
+        console.log(`🔧 Added ${candidate.resumeId} to state.seededCandidates. Current set:`, state.seededCandidates);
+        
         // NEW: Send initial chat message automatically after successful seeding
         if (seedResult.ok) {
-          const initialQuestion = "Tell me about your background and experience.";
+          const initialQuestion = "Is this a good match answer yes or now and a breif explentaiton why!";
           console.log(`💬 Sending initial chat message for ${candidate.resumeId}...`);
           
-          // Send message without waiting - chat.js handles everything
-          sendMessageAndForget(candidate.resumeId, initialQuestion);
+          // Send message - chat.js handles everything automatically
+          sendMessage(candidate.resumeId, initialQuestion);
           
           console.log(`✅ Initial chat started for ${candidate.resumeId}`);
         }
         
         // Update dot to show completed (both operations done)
         updateProgressDot(candidate.resumeId, 'processed', state);
+        
+        // NEW: Update button states if this candidate is currently selected
+        if (state.currentCandidate && state.currentCandidate.resumeId === candidate.resumeId) {
+          console.log(`🎯 Current candidate matches processed candidate - updating button states`);
+          updateChatButtonStates(state);
+        } else {
+          console.log(`⏸️ Current candidate (${state.currentCandidate?.resumeId}) doesn't match processed candidate (${candidate.resumeId}) - no button update needed`);
+        }
         
       } catch (error) {
         console.error(`❌ Processing failed for ${candidate.resumeId}:`, error);
@@ -524,8 +535,16 @@ async function processSequentialExtractions() {
           console.error('Failed to clear seeding status:', seedError);
         }
         
+        // NEW: Remove from in-memory seeded candidates if processing failed
+        state.seededCandidates.delete(candidate.resumeId);
+        
         // Update dot to show failed
         updateProgressDot(candidate.resumeId, 'failed', state);
+        
+        // NEW: Update button states if this candidate is currently selected
+        if (state.currentCandidate && state.currentCandidate.resumeId === candidate.resumeId) {
+          updateChatButtonStates(state);
+        }
       }
     }
     
@@ -579,6 +598,15 @@ async function onSelectCandidate(e) {
   state.currentCandidate = rec;
   state.selectedCandidateId = rid;
 
+  // NEW: Check if candidate is already seeded and update in-memory state
+  const isAlreadySeeded = await isCandidateSeeded(rid);
+  if (isAlreadySeeded) {
+    state.seededCandidates.add(rid);
+  }
+
+  // Set current chat context for notifications
+  setCurrentChatContext(rid, chatLog);
+
   // Clear chat display immediately for clean slate
   chatLog.innerHTML = '';
 
@@ -615,92 +643,11 @@ async function onSelectCandidate(e) {
   jdTextDisplay.style.display = 'none';
   updateJdBtn.style.display = 'none';
 
-  // Always load fresh chat history for the selected candidate
-  let candidateChatHistory = getChatHistory(rid);
-  state.chatHistory[rid] = candidateChatHistory;  // Update cache with fresh data
-
-  // NOW check processing status and update UI accordingly
-  // Use the dot's current state from the DOM
-  const displayStatus = dotStatus;
-
-  if (displayStatus === 'pending' || displayStatus === 'processing') {
-    // Show appropriate message based on display status
-    if (displayStatus === 'processing') {
-      appendMsg(chatLog, 'assistant', 'This candidate is currently being processed. Please wait...');
-    } else {
-      appendMsg(chatLog, 'assistant', 'This candidate is waiting to be processed. Please wait...');
-    }
-    
-    // Disable chat
-    const btnSend = document.getElementById('btnSend');
-    const chatText = document.getElementById('chatText');
-    if (btnSend) btnSend.disabled = true;
-    if (chatText) chatText.disabled = true;
-    
-    // Disable data view button and show appropriate text
-    const dataViewBtn = document.getElementById('dataViewBtn');
-    if (dataViewBtn) {
-      dataViewBtn.disabled = true;
-      if (displayStatus === 'processing') {
-        dataViewBtn.innerHTML = '<span class="spinner">⏳</span> Processing...';
-      } else {
-        dataViewBtn.innerHTML = '<span class="spinner">⏳</span> Waiting...';
-      }
-      dataViewBtn.style.opacity = '0.5';
-    }
-    
-    // Enable PDF view button (can still view PDF)
-    const pdfViewBtn = document.getElementById('pdfViewBtn');
-    if (pdfViewBtn) {
-      pdfViewBtn.disabled = false;
-      pdfViewBtn.style.opacity = '1';
-    }
-    
-    // Don't proceed with chat setup, but UI is already set up
-    return;
-  }
-
-  // If we get here, candidate is ready - enable everything
-  const dataViewBtn = document.getElementById('dataViewBtn');
-  if (dataViewBtn) {
-    dataViewBtn.disabled = false;
-    dataViewBtn.innerHTML = 'Data View';
-    dataViewBtn.style.opacity = '1';
-  }
-
-  const pdfViewBtn = document.getElementById('pdfViewBtn');
-  if (pdfViewBtn) {
-    pdfViewBtn.disabled = false;
-    pdfViewBtn.style.opacity = '1';
-  }
-
-  // Check if candidate is actually seeded and extracted
-  const isActuallySeeded = await isCandidateSeeded(rid);
-  const isActuallyExtracted = rec.extractionStatus === 'extracted';
-
-  if (isActuallySeeded && isActuallyExtracted) {
-  // Add to in-memory set for consistency
-  state.seededCandidates.add(rid);
+  // Let chat.js handle everything - it will show messages and transit indicators automatically
+  refreshChatDisplay(rid, chatLog);
   
-
-  
-  // THEN restore chat history if it exists
-  if (candidateChatHistory.length > 0) {
-    candidateChatHistory.forEach(msg => {
-      appendMsg(chatLog, msg.role, msg.content);
-    });
-  }
-} else {
-  // Something went wrong during processing
-  appendMsg(chatLog, 'assistant', 'This candidate is not ready for chat yet. Processing may have failed or is still in progress.');
-  
-  // Disable chat for this candidate
+  // Update button states based on current candidate status
   updateChatButtonStates(state);
-  return; // Don't proceed with chat setup
-}
-
-// Update button states AFTER ensuring seededCandidates is updated
-updateChatButtonStates(state);
 }
 
 
