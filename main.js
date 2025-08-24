@@ -642,6 +642,48 @@ async function onSelectCandidate(e) {
   // Hide JD text display when candidate is selected
   jdTextDisplay.style.display = 'none';
   updateJdBtn.style.display = 'none';
+  
+  // NEW: Update PDF/Data view button states based on processing status
+  const dataViewBtn = document.getElementById('dataViewBtn');
+  const pdfViewBtn = document.getElementById('pdfViewBtn');
+  
+  console.log(`🔧 Updating PDF/Data view button states for ${rid} - dotStatus: ${dotStatus}`);
+  
+  if (dotStatus === 'pending' || dotStatus === 'processing') {
+    // Disable data view button and show appropriate text
+    if (dataViewBtn) {
+      dataViewBtn.disabled = true;
+      if (dotStatus === 'processing') {
+        dataViewBtn.innerHTML = '<span class="spinner">⏳</span> Processing...';
+        console.log(`⏳ Data view button disabled - showing "Processing..."`);
+      } else {
+        dataViewBtn.innerHTML = '<span class="spinner">⏳</span> Waiting...';
+        console.log(`⏳ Data view button disabled - showing "Waiting..."`);
+      }
+      dataViewBtn.style.opacity = '0.5';
+    }
+    
+    // Enable PDF view button (can still view PDF during processing)
+    if (pdfViewBtn) {
+      pdfViewBtn.disabled = false;
+      pdfViewBtn.style.opacity = '1';
+      console.log(`✅ PDF view button enabled - can view PDF during processing`);
+    }
+  } else {
+    // Candidate is ready - enable everything
+    if (dataViewBtn) {
+      dataViewBtn.disabled = false;
+      dataViewBtn.innerHTML = 'Data View';
+      dataViewBtn.style.opacity = '1';
+      console.log(`✅ Data view button enabled - showing "Data View"`);
+    }
+    
+    if (pdfViewBtn) {
+      pdfViewBtn.disabled = false;
+      pdfViewBtn.style.opacity = '1';
+      console.log(`✅ PDF view button enabled - ready for use`);
+    }
+  }
 
   // Let chat.js handle everything - it will show messages and transit indicators automatically
   refreshChatDisplay(rid, chatLog);
