@@ -51,6 +51,28 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
   
   // Mark as setup
   chatEventListenersSetup = true;
+  
+  // Setup quick question buttons
+  setupQuickQuestionButtons(chatText);
+}
+
+function setupQuickQuestionButtons(chatText) {
+  const quickQuestionButtons = document.querySelectorAll('.quick-question');
+  
+  quickQuestionButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      const fullQuestion = this.getAttribute('data-question');
+      
+      // Put the question in the input like user typed it
+      chatText.value = fullQuestion;
+      
+      // Trigger the existing send logic
+      const btnSend = document.getElementById('btnSend');
+      if (btnSend && !btnSend.disabled) {
+        btnSend.click();
+      }
+    });
+  });
 }
 
 function appendMsg(chatLog, role, content) {
