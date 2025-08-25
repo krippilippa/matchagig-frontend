@@ -19,17 +19,24 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
   
   const btnSend = document.getElementById('btnSend');
   
+  // Centralized function to handle message sending
+  function handleSendMessage() {
+    const text = chatText.value.trim();
+    if (!text) return;
+    
+    // Check if button is disabled (prevent sending when disabled)
+    if (btnSend && btnSend.disabled) return;
+    
+    chatText.value = '';
+    
+    // Send message and let the system handle everything
+    if (state.currentCandidate && state.currentCandidate.resumeId) {
+      sendMessage(state.currentCandidate.resumeId, text);
+    }
+  }
+  
   if (btnSend) {
-    btnSend.addEventListener('click', () => {
-      const text = chatText.value.trim();
-      if (!text) return;
-      chatText.value = '';
-      
-      // Send message and let the system handle everything
-      if (state.currentCandidate && state.currentCandidate.resumeId) {
-        sendMessage(state.currentCandidate.resumeId, text);
-      }
-    });
+    btnSend.addEventListener('click', handleSendMessage);
   }
   
   // Add Enter key handler for chat input
@@ -37,14 +44,7 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
     chatText.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        const text = chatText.value.trim();
-        if (!text) return;
-        chatText.value = '';
-        
-        // Send message and let the system handle everything
-        if (state.currentCandidate && state.currentCandidate.resumeId) {
-          sendMessage(state.currentCandidate.resumeId, text);
-        }
+        handleSendMessage();
       }
     });
   }
@@ -164,6 +164,10 @@ export function sendMessage(candidateId, message) {
   // Set transit state
   pendingMessages.set(candidateId, { message, timestamp: Date.now() });
   
+  // Disable send button
+  const btnSend = document.getElementById('btnSend');
+  if (btnSend) btnSend.disabled = true;
+  
   // NEW: Immediately refresh UI to show user message + loading (only if this candidate is currently displayed)
   if (currentDisplayedCandidate === candidateId && currentChatLog) {
     console.log(`🔄 Immediate UI refresh for ${candidateId} - showing user message + loading`);
@@ -185,10 +189,16 @@ export function sendMessage(candidateId, message) {
       
       // Notify UI to refresh
       notifyMessageReceived(candidateId);
+      
+      // Re-enable send button
+      if (btnSend) btnSend.disabled = false;
     })
     .catch(error => {
       console.error(`Failed to get response for ${candidateId}:`, error);
       pendingMessages.delete(candidateId);
+      
+      // Re-enable send button on error too
+      if (btnSend) btnSend.disabled = false;
     });
 }
 
