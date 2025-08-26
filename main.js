@@ -103,6 +103,7 @@ let selectedFiles = [];  // File[]
 
 function setupEventListeners() {
   // Landing page events
+  document.getElementById('useMockDataBtn').addEventListener('click', loadMockData);
   uploadArea.addEventListener('click', handleUploadClick);
   uploadArea.addEventListener('dragOver', handleDragOver);
   uploadArea.addEventListener('dragleave', handleDragLeave);
@@ -203,6 +204,48 @@ async function handleRunMatch() {
   }
 }
 
+async function loadMockData() {
+  try {
+    // Load sample JD from the existing file
+    const jdResponse = await fetch('sample-jd.txt');
+    const jdText = await jdResponse.text();
+    
+    // Populate the JD textarea (reusing existing element)
+    landingJdText.value = jdText;
+    
+    // Load a few sample PDFs from the existing sample-resumes folder
+    const samplePdfPaths = [
+      'sample-resumes/Resumé.pdf',
+      'sample-resumes/Resume_SE.pdf', 
+      'sample-resumes/Resume v3 2025.pdf'
+    ];
+    
+    // Load PDFs as File objects (reusing existing file loading pattern)
+    const pdfFiles = await Promise.all(
+      samplePdfPaths.map(async (pdfPath) => {
+        const response = await fetch(pdfPath);
+        const blob = await response.blob();
+        return new File([blob], pdfPath.split('/').pop(), { type: 'application/pdf' });
+      })
+    );
+    
+    // Set the files in the input (reusing existing pattern)
+    const dataTransfer = new DataTransfer();
+    pdfFiles.forEach(file => dataTransfer.items.add(file));
+    landingPdfInput.files = dataTransfer.files;
+    
+    // Update upload status (reusing existing function)
+    updateUploadStatus(pdfFiles.length);
+    
+    // Automatically trigger the existing run match flow (reusing existing function)
+    await handleRunMatch();
+    
+  } catch (error) {
+    console.error('Error loading mock data:', error);
+    alert('Failed to load mock data. Please try uploading your own files.');
+  }
+}
+
 async function handleBackToDemo() {
   try {
     // Clear all storage using consolidated function
@@ -220,6 +263,9 @@ async function handleBackToDemo() {
     state.chatHistory = {};
     state.currentCandidate = null;
     state.seededCandidates.clear();
+    
+    // NEW: Reset the selectedFiles variable
+    selectedFiles = [];
     
     // Clear UI
     clearUI(listEl, pdfFrame, viewerTitle, jdStatusEl, chatLog);
