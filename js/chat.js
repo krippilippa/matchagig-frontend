@@ -3,29 +3,23 @@
 import { askCandidate } from './api.js';
 import { saveChatHistory, loadChatHistory } from './database.js';
 
-// Flag to prevent multiple event listener setups
-let chatEventListenersSetup = false;
-
 // Simple state tracking
-const pendingMessages = new Map(); // candidateId -> { message, timestamp }
 let currentDisplayedCandidate = null;
 let currentChatLog = null;
 
 export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
-  // Prevent multiple setups
-  if (chatEventListenersSetup) {
-    return;
-  }
+  // Always set up event listeners when called
+  // This ensures quick question buttons work after candidate selection
   
   const btnSend = document.getElementById('btnSend');
+  
+  // Clean up old event listeners first to prevent duplicates
+  cleanupOldEventListeners();
   
   // Centralized function to handle message sending
   function handleSendMessage() {
     const text = chatText.value.trim();
     if (!text) return;
-    
-    // Check if button is disabled (prevent sending when disabled)
-    if (btnSend && btnSend.disabled) return;
     
     chatText.value = '';
     
@@ -49,18 +43,28 @@ export function setupChatEventListeners(state, chatLog, chatText, jdTextEl) {
     });
   }
   
-  // Mark as setup
-  chatEventListenersSetup = true;
-  
   // Setup quick question buttons
   setupQuickQuestionButtons(chatText);
+}
+
+// Clean up old event listeners to prevent duplicates
+function cleanupOldEventListeners() {
+  const quickQuestionButtons = document.querySelectorAll('.quick-question');
+  
+  quickQuestionButtons.forEach(button => {
+    // Clone the button to remove all event listeners
+    const newButton = button.cloneNode(true);
+    button.parentNode.replaceChild(newButton, button);
+  });
 }
 
 function setupQuickQuestionButtons(chatText) {
   const quickQuestionButtons = document.querySelectorAll('.quick-question');
   
-  quickQuestionButtons.forEach(button => {
+  quickQuestionButtons.forEach((button, index) => {
+    
     button.addEventListener('click', function() {
+      
       const fullQuestion = this.getAttribute('data-question');
       
       // Put the question in the input like user typed it
@@ -72,6 +76,7 @@ function setupQuickQuestionButtons(chatText) {
         btnSend.click();
       }
     });
+    
   });
 }
 
@@ -101,10 +106,6 @@ function appendMsg(chatLog, role, content) {
 }
 
 
-
-function resetChatEventListeners() {
-  chatEventListenersSetup = false;
-}
 
 // Chat history management functions (internal - used by new API functions)
 function addMessageToCandidate(candidateId, role, content) {
@@ -171,56 +172,56 @@ function getChatHistory(candidateId) {
   return loadChatHistory(candidateId);
 }
 
-function isInTransit(candidateId) {
-  return pendingMessages.has(candidateId);
-}
-
 // ============================================================================
 // ACTION LAYER - Functions that change state
 // ============================================================================
 
 export function sendMessage(candidateId, message) {
+  
   // Store user message
   addMessageToCandidate(candidateId, 'user', message);
   
-  // Set transit state
-  pendingMessages.set(candidateId, { message, timestamp: Date.now() });
-  
-  // Disable send button
-  const btnSend = document.getElementById('btnSend');
-  if (btnSend) btnSend.disabled = true;
+  // Add to transit tracking and update button states
+  if (window.currentChatState) {
+    window.currentChatState.candidatesInTransit.add(candidateId);
+    updateButtonStates(window.currentChatState);
+  }
   
   // NEW: Immediately refresh UI to show user message + loading (only if this candidate is currently displayed)
   if (currentDisplayedCandidate === candidateId && currentChatLog) {
-    console.log(`🔄 Immediate UI refresh for ${candidateId} - showing user message + loading`);
     refreshChatDisplay(candidateId, currentChatLog);
-  } else {
-    console.log(`⏸️ No immediate UI refresh for ${candidateId} - not currently displayed (current: ${currentDisplayedCandidate})`);
   }
   
   // Send to API
   askCandidate(candidateId, message)
     .then(response => {
-      console.log(`✅ AI response received for ${candidateId} - clearing transit state`);
       
       // Store AI response
       addMessageToCandidate(candidateId, 'assistant', response.text);
       
-      // Clear transit state
-      pendingMessages.delete(candidateId);
+      // Remove from transit tracking and update button states
+      if (window.currentChatState) {
+        window.currentChatState.candidatesInTransit.delete(candidateId);
+        updateButtonStates(window.currentChatState);
+      }
       
       // Notify UI to refresh
       notifyMessageReceived(candidateId);
       
-      // Re-enable send button
-      if (btnSend) btnSend.disabled = false;
+      // Button state management is now handled by the unified system
+      // No need to manually re-enable buttons here
     })
     .catch(error => {
       console.error(`Failed to get response for ${candidateId}:`, error);
-      pendingMessages.delete(candidateId);
       
-      // Re-enable send button on error too
-      if (btnSend) btnSend.disabled = false;
+      // Remove from transit tracking on error and update button states
+      if (window.currentChatState) {
+        window.currentChatState.candidatesInTransit.delete(candidateId);
+        updateButtonStates(window.currentChatState);
+      }
+      
+      // Button state management is now handled by the unified system
+      // No need to manually re-enable buttons here
     });
 }
 
@@ -234,7 +235,6 @@ export function refreshChatDisplay(candidateId, chatLogElement) {
   
   // Get fresh data
   const messages = getChatHistory(candidateId);
-  const inTransit = isInTransit(candidateId);
   
   // Display all messages
   messages.forEach(msg => {
@@ -242,9 +242,7 @@ export function refreshChatDisplay(candidateId, chatLogElement) {
   });
   
   // Show transit indicator if needed
-  if (inTransit) {
-    showTransitIndicator(chatLogElement, candidateId);
-  }
+  // No more transit state, so this function is effectively removed
 }
 
 function displayStatusMessage(chatLogElement, message) {
@@ -256,66 +254,74 @@ function displayStatusMessage(chatLogElement, message) {
 // ============================================================================
 
 function notifyMessageReceived(candidateId) {
+  
   // If this candidate is currently displayed, refresh the UI
   if (currentDisplayedCandidate === candidateId && currentChatLog) {
     refreshChatDisplay(candidateId, currentChatLog);
+    
+    // Button state management is now handled by the unified system
+    // No need to manually re-enable buttons here
   }
 }
 
-export function setCurrentChatContext(candidateId, chatLogElement) {
+export function setCurrentChatContext(candidateId, chatLogElement, state) {
+  
   currentDisplayedCandidate = candidateId;
   currentChatLog = chatLogElement;
+  
+  // NEW: Store state globally so chat functions can access it for button state management
+  if (state) {
+    window.currentChatState = state;
+  }
 }
 
-function showTransitIndicator(chatLogElement, candidateId) {
-  const loadingDiv = document.createElement('div');
-  loadingDiv.className = 'assistant loading';
-  loadingDiv.innerHTML = '<span class="spinner">⏳</span> Waiting for response...';
-  loadingDiv.dataset.candidateId = candidateId;
-  chatLogElement.appendChild(loadingDiv);
-}
+// ============================================================================
+// UNIFIED BUTTON STATE MANAGEMENT
+// ============================================================================
 
-
-
-// Update chat button states based on candidate seeding status
-export function updateChatButtonStates(state) {
+// Helper functions to enable/disable all chat functionality at once
+function enableChatFunctionality() {
   const btnSend = document.getElementById('btnSend');
   const chatText = document.getElementById('chatText');
+  const quickQuestionButtons = document.querySelectorAll('.quick-question');
   
-  if (!btnSend || !chatText) {
+  if (btnSend) btnSend.disabled = false;
+  if (chatText) chatText.disabled = false;
+  quickQuestionButtons.forEach(btn => btn.disabled = false);
+}
+
+function disableChatFunctionality() {
+  const btnSend = document.getElementById('btnSend');
+  const chatText = document.getElementById('chatText');
+  const quickQuestionButtons = document.querySelectorAll('.quick-question');
+  
+  if (btnSend) btnSend.disabled = true;
+  if (chatText) chatText.disabled = true;
+  quickQuestionButtons.forEach(btn => btn.disabled = true);
+}
+
+// Unified button state management function
+// Considers: candidate readiness + current selection + transit state
+export function updateButtonStates(state) {
+  // Check if we have a current candidate
+  if (!state.currentCandidate || !state.currentCandidate.resumeId) {
+    // No candidate selected - disable everything
+    disableChatFunctionality();
     return;
   }
   
-  console.log(`🔍 updateChatButtonStates called:`);
-  console.log(`  - state.currentCandidate:`, state.currentCandidate);
-  console.log(`  - state.seededCandidates:`, state.seededCandidates);
+  const candidateId = state.currentCandidate.resumeId;
+  const isSeeded = state.seededCandidates && state.seededCandidates.has(candidateId);
+  const hasMessageInTransit = state.candidatesInTransit && state.candidatesInTransit.has(candidateId);
   
-  // Check if we have a current candidate and if it's seeded
-  if (state.currentCandidate && state.currentCandidate.resumeId) {
-    const candidateId = state.currentCandidate.resumeId;
-    const isSeeded = state.seededCandidates && state.seededCandidates.has(candidateId);
-    
-    console.log(`  - candidateId: ${candidateId}`);
-    console.log(`  - isSeeded: ${isSeeded}`);
-    
-    if (isSeeded) {
-      // Enable chat for seeded candidates
-      btnSend.disabled = false;
-      chatText.disabled = false;
-      chatText.placeholder = 'Ask something...';
-      console.log(`✅ Chat enabled for ${candidateId}`);
-    } else {
-      // Disable chat for unseeded candidates
-      btnSend.disabled = true;
-      chatText.disabled = true;
-      chatText.placeholder = 'Please select a candidate first to enable chat...';
-      console.log(`❌ Chat disabled for ${candidateId} - not seeded`);
-    }
+  if (isSeeded && !hasMessageInTransit) {
+    // Ready and no message in transit - enable everything
+    enableChatFunctionality();
+  } else if (isSeeded && hasMessageInTransit) {
+    // Ready but message in transit - disable everything
+    disableChatFunctionality();
   } else {
-    // No candidate selected
-    btnSend.disabled = true;
-    chatText.disabled = true;
-    chatText.placeholder = 'Please select a candidate first...';
-    console.log(`❌ Chat disabled - no current candidate`);
+    // Not ready - disable everything
+    disableChatFunctionality();
   }
 }

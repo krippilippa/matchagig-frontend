@@ -25,7 +25,7 @@ import {
 
 import { 
   setupChatEventListeners, 
-  updateChatButtonStates,
+  updateButtonStates,
   sendMessage,
   refreshChatDisplay,
   setCurrentChatContext
@@ -90,9 +90,8 @@ const state = {
   candidates: [],        // from /v1/bulk-zip
   currentCandidate: null, // { canonicalText, pdfUrl, email, ... }
   jobTitle: '', // Added for job title
-  chatHistory: {}, // Store chat history for each candidate: { candidateId: [messages] }
-  selectedCandidateId: null, // Track which candidate is currently selected
-  seededCandidates: new Set() // Track which candidates have been seeded for stateful chat
+  seededCandidates: new Set(), // Track which candidates have been seeded for stateful chat
+  candidatesInTransit: new Set() // Track which candidates have messages currently being processed
 };
 
 let selectedFiles = [];  // File[]
@@ -194,7 +193,7 @@ async function handleRunMatch() {
     setupChatEventListeners(state, chatLog, chatText, landingJdText);
     
     // Initialize chat button states AFTER everything is set up
-    updateChatButtonStates(state);
+    updateButtonStates(state);
     
   } catch (error) {
     setStatus(statusEl, 'Error during matching: ' + error.message);
@@ -255,14 +254,11 @@ async function handleBackToDemo() {
     await clearAllSeedingStatus();
     
     // Reset state
-    state.candidates = [];
     state.jdHash = null;
     state.jdTextSnapshot = '';
     state.jobTitle = '';
-    state.selectedCandidateId = null;
-    state.chatHistory = {};
-    state.currentCandidate = null;
     state.seededCandidates.clear();
+    state.candidatesInTransit.clear();
     
     // NEW: Reset the selectedFiles variable
     selectedFiles = [];
@@ -271,7 +267,7 @@ async function handleBackToDemo() {
     clearUI(listEl, pdfFrame, viewerTitle, jdStatusEl, chatLog);
     
     // Update chat button states after clearing
-    updateChatButtonStates(state);
+    updateButtonStates(state);
 
     // Switch back to landing page
     mainInterface.style.display = 'none';
@@ -501,11 +497,9 @@ async function processResumes() {
 // NEW: Sequential extraction processing
 async function processSequentialExtractions() {
   try {
-    console.log('🔄 Starting sequential extraction process...');
     
     // Use state.candidates which are already sorted by cosine score from backend
     const candidatesToProcess = state.candidates;
-    console.log(`📊 Found ${candidatesToProcess.length} candidates to process`);
     
     if (candidatesToProcess.length === 0) {
       console.log('❌ No candidates found, skipping extraction');
@@ -515,14 +509,11 @@ async function processSequentialExtractions() {
     // Process each candidate sequentially, one by one
     for (let i = 0; i < candidatesToProcess.length; i++) {
       const candidate = candidatesToProcess[i];
-      console.log(`🔍 Processing candidate ${i + 1}/${candidatesToProcess.length}: ${candidate.resumeId} (${candidate.filename || 'unknown'})`);
       
       try {
         // Check if this resume already has extracted data
         const existingRecord = await getResume(candidate.resumeId);
         if (existingRecord && existingRecord.extractionStatus === 'extracted') {
-          console.log(`⏭️ Skipping ${candidate.resumeId} - already extracted`);
-                  // Update dot to show already completed
         updateProgressDot(candidate.resumeId, 'processed', state);
           continue;
         }
@@ -544,29 +535,19 @@ async function processSequentialExtractions() {
         
         // NEW: Update in-memory state for button state management
         state.seededCandidates.add(candidate.resumeId);
-        console.log(`🔧 Added ${candidate.resumeId} to state.seededCandidates. Current set:`, state.seededCandidates);
         
         // NEW: Send initial chat message automatically after successful seeding
         if (seedResult.ok) {
-          const initialQuestion = "Is this a good match answer yes or now and a breif explentaiton why!";
-          console.log(`💬 Sending initial chat message for ${candidate.resumeId}...`);
-          
+          const initialQuestion = "Is this a good match answer yes or now and a breif explentaiton why!";          
           // Send message - chat.js handles everything automatically
           sendMessage(candidate.resumeId, initialQuestion);
-          
-          console.log(`✅ Initial chat started for ${candidate.resumeId}`);
         }
         
         // Update dot to show completed (both operations done)
         updateProgressDot(candidate.resumeId, 'processed', state);
         
-        // NEW: Update button states if this candidate is currently selected
-        if (state.currentCandidate && state.currentCandidate.resumeId === candidate.resumeId) {
-          console.log(`🎯 Current candidate matches processed candidate - updating button states`);
-          updateChatButtonStates(state);
-        } else {
-          console.log(`⏸️ Current candidate (${state.currentCandidate?.resumeId}) doesn't match processed candidate (${candidate.resumeId}) - no button update needed`);
-        }
+        // Update button states after processing to ensure UI is in sync
+        updateButtonStates(state);
         
       } catch (error) {
         console.error(`❌ Processing failed for ${candidate.resumeId}:`, error);
@@ -587,10 +568,9 @@ async function processSequentialExtractions() {
         // Update dot to show failed
         updateProgressDot(candidate.resumeId, 'failed', state);
         
-        // NEW: Update button states if this candidate is currently selected
-        if (state.currentCandidate && state.currentCandidate.resumeId === candidate.resumeId) {
-          updateChatButtonStates(state);
-        }
+        // Update button states after processing failure to ensure UI is in sync
+        updateButtonStates(state);
+        
       }
     }
     
@@ -604,7 +584,6 @@ async function processSequentialExtractions() {
 // Candidate selection and management
 async function onSelectCandidate(e) {
   const rid = e.currentTarget.dataset.resumeId;
-  console.log(`👤 Candidate selected: ${rid}`);
   
   // GET THE DOT'S CURRENT STATE FROM THE DOM
   const dot = document.querySelector(`.progress-dot[data-resume-id="${rid}"]`);
@@ -622,7 +601,7 @@ async function onSelectCandidate(e) {
     }
   }
   
-  console.log(`Dot status for ${rid}: ${dotStatus}`);
+
   
   // Find the candidate in our reconstructed state
   const candidate = state.candidates.find(c => c.resumeId === rid);
@@ -642,7 +621,6 @@ async function onSelectCandidate(e) {
   
   // Set current candidate for chat
   state.currentCandidate = rec;
-  state.selectedCandidateId = rid;
 
   // NEW: Check if candidate is already seeded and update in-memory state
   const isAlreadySeeded = await isCandidateSeeded(rid);
@@ -651,7 +629,7 @@ async function onSelectCandidate(e) {
   }
 
   // Set current chat context for notifications
-  setCurrentChatContext(rid, chatLog);
+  setCurrentChatContext(rid, chatLog, state);
 
   // Clear chat display immediately for clean slate
   chatLog.innerHTML = '';
@@ -692,19 +670,15 @@ async function onSelectCandidate(e) {
   // NEW: Update PDF/Data view button states based on processing status
   const dataViewBtn = document.getElementById('dataViewBtn');
   const pdfViewBtn = document.getElementById('pdfViewBtn');
-  
-  console.log(`🔧 Updating PDF/Data view button states for ${rid} - dotStatus: ${dotStatus}`);
-  
+    
   if (dotStatus === 'pending' || dotStatus === 'processing') {
     // Disable data view button and show appropriate text
     if (dataViewBtn) {
       dataViewBtn.disabled = true;
       if (dotStatus === 'processing') {
         dataViewBtn.innerHTML = '<span class="spinner">⏳</span> Processing...';
-        console.log(`⏳ Data view button disabled - showing "Processing..."`);
       } else {
         dataViewBtn.innerHTML = '<span class="spinner">⏳</span> Waiting...';
-        console.log(`⏳ Data view button disabled - showing "Waiting..."`);
       }
       dataViewBtn.style.opacity = '0.5';
     }
@@ -712,30 +686,29 @@ async function onSelectCandidate(e) {
     // Enable PDF view button (can still view PDF during processing)
     if (pdfViewBtn) {
       pdfViewBtn.disabled = false;
-      pdfViewBtn.style.opacity = '1';
-      console.log(`✅ PDF view button enabled - can view PDF during processing`);
-    }
+      pdfViewBtn.style.opacity = '1';    }
   } else {
     // Candidate is ready - enable everything
     if (dataViewBtn) {
       dataViewBtn.disabled = false;
       dataViewBtn.innerHTML = 'Data View';
       dataViewBtn.style.opacity = '1';
-      console.log(`✅ Data view button enabled - showing "Data View"`);
     }
     
     if (pdfViewBtn) {
       pdfViewBtn.disabled = false;
       pdfViewBtn.style.opacity = '1';
-      console.log(`✅ PDF view button enabled - ready for use`);
     }
   }
 
   // Let chat.js handle everything - it will show messages and transit indicators automatically
   refreshChatDisplay(rid, chatLog);
   
+  // Setup chat event listeners to ensure quick question buttons work
+  setupChatEventListeners(state, chatLog, chatText, landingJdText);
+  
   // Update button states based on current candidate status
-  updateChatButtonStates(state);
+  updateButtonStates(state);
 }
 
 
@@ -818,7 +791,7 @@ function setupMainInterface() {
   }
   
   // Initialize chat button states
-  updateChatButtonStates(state);
+  updateButtonStates(state);
 }
 
 // Setup landing page interface
@@ -874,13 +847,12 @@ async function loadExistingData() {
     const allRecords = await getAllResumes();
     const hasPendingResumes = allRecords.some(record => record.extractionStatus === 'pending');
     if (hasPendingResumes) {
-      console.log('🔄 Found pending resumes, resuming extraction process...');
       // Resume extraction process
       await processSequentialExtractions();
     }
     
     // Update chat button states after loading data
-    updateChatButtonStates(state);
+    updateButtonStates(state);
     
   } catch (error) {
     // Silently handle loading errors

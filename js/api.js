@@ -59,16 +59,13 @@ export async function askCandidate(candidateId, text) {
 }
 
 export async function extractResumeData(canonicalText) {
-  console.log(`🌐 Calling resume extraction API...`);
   
   const response = await fetch(getApiUrl(CONFIG.ENDPOINTS.RESUME_EXTRACT), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ canonicalText })
   });
-  
-  console.log(`📡 API response status: ${response.status}`);
-  
+    
   if (!response.ok) {
     const errorText = await response.text();
     console.error(`❌ API extraction failed: ${response.status} - ${errorText}`);

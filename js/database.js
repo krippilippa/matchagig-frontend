@@ -87,11 +87,6 @@ export async function getResume(resumeId) {
     const r = tx.objectStore(STORE).get(resumeId);
     r.onsuccess = () => {
       const result = r.result || null;
-      if (result) {
-        console.log(`✅ Resume found in database: ${resumeId}`);
-      } else {
-        console.log(`❌ Resume not found in database: ${resumeId}`);
-      }
       resolve(result);
     };
     r.onerror = () => {
@@ -317,7 +312,6 @@ export async function updateExtractionStatus(resumeId, status, extractedData = n
           // Put the updated record back
           const putRequest = store.put(record);
           putRequest.onsuccess = () => {
-            console.log(`✅ Successfully updated extraction status for ${resumeId} to ${status}`);
             resolve();
           };
           putRequest.onerror = () => reject(putRequest.error);
