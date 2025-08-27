@@ -96,12 +96,11 @@ export function updateProgressDot(resumeId, status, state = null) {
     // Add the new status class
     dot.classList.add(status);
     
-    // If this candidate is currently selected, simulate a click to refresh the UI
-    if (state && state.selectedCandidateId === resumeId) {
-      // Simulate click on the same candidate to refresh all UI elements
+    // If this candidate is currently selected, simulate a click to refresh ALL UI
+    if (state && state.currentCandidate && state.currentCandidate.resumeId === resumeId) {
       const candidateRow = document.querySelector(`.row[data-resume-id="${resumeId}"]`);
       if (candidateRow) {
-        candidateRow.click();
+        candidateRow.click(); // ← This refreshes everything automatically!
       }
     }
   }
