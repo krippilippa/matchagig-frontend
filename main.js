@@ -108,6 +108,7 @@ function setupEventListeners() {
   uploadArea.addEventListener('dragleave', handleDragLeave);
   uploadArea.addEventListener('drop', handleFileDrop);
   landingPdfInput.addEventListener('change', handleFileSelect);
+  landingJdText.addEventListener('input', updateRunMatchButtonState);
   runMatchBtn.addEventListener('click', handleRunMatch);
   backToDemoBtn.addEventListener('click', handleBackToDemo);
 
@@ -119,6 +120,9 @@ function setupEventListeners() {
   updateJdBtn.addEventListener('click', handleUpdateJdClick);
   pdfViewBtn.addEventListener('click', handlePdfViewClick);
   dataViewBtn.addEventListener('click', handleDataViewClick);
+  
+  // Initialize button state
+  updateRunMatchButtonState();
 }
 
 // ============================================================================
@@ -147,12 +151,14 @@ function handleFileDrop(e) {
   const files = Array.from(e.dataTransfer.files).filter(f => /\.pdf$/i.test(f.name));
   if (files.length > 0) {
     landingPdfInput.files = e.dataTransfer.files;
+    selectedFiles = files; // Update the global selectedFiles array
     updateUploadStatus(files.length);
   }
 }
 
 function handleFileSelect(e) {
   const files = Array.from(e.target.files || []).filter(f => /\.pdf$/i.test(f.name));
+  selectedFiles = files; // Update the global selectedFiles array
   updateUploadStatus(files.length);
 }
 
@@ -239,6 +245,9 @@ async function loadSampleData() {
     const dataTransfer = new DataTransfer();
     pdfFiles.forEach(file => dataTransfer.items.add(file));
     landingPdfInput.files = dataTransfer.files;
+    
+    // Update the global selectedFiles array
+    selectedFiles = pdfFiles;
     
     // Update upload status to show the files are loaded
     updateUploadStatus(pdfFiles.length);
@@ -389,6 +398,24 @@ function updateUploadStatus(fileCount) {
     // Restore original text with proper structure
     uploadTextDiv.innerHTML = `<strong>Drag & drop résumés here</strong><br>or click to select files. We never save your files.`;
     uploadArea.style.borderColor = '#ccc';
+  }
+  
+  // Update button state after file count changes
+  updateRunMatchButtonState();
+}
+
+// Check if Run Match button should be enabled
+function updateRunMatchButtonState() {
+  const hasFiles = selectedFiles.length > 0;
+  const hasJdText = landingJdText.value.trim().length > 0;
+  const runMatchBtn = document.getElementById('runMatchBtn');
+  
+  if (hasFiles && hasJdText) {
+    runMatchBtn.disabled = false;
+    runMatchBtn.classList.remove('disabled');
+  } else {
+    runMatchBtn.disabled = true;
+    runMatchBtn.classList.add('disabled');
   }
 }
 

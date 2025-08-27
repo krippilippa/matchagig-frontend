@@ -140,6 +140,16 @@ html, body { height: 100%; margin: 0; }
   background: #555;
 }
 
+.run-match-btn.disabled {
+  background: #ccc;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.run-match-btn.disabled:hover {
+  background: #ccc;
+}
+
 
 
 /* Privacy Note */
