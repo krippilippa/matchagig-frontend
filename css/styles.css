@@ -524,3 +524,11 @@ button:disabled {
 .progress-dot.failed {
   background-color: #f44336; /* Red */
 }
+
+/* Loading indicator for interview questions button */
+.loading-indicator {
+  margin-left: 8px;
+  display: inline-block;
+  vertical-align: middle;
+  opacity: 1;
+}

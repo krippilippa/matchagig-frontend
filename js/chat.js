@@ -185,6 +185,7 @@ export function sendMessage(candidateId, message) {
   if (window.currentChatState) {
     window.currentChatState.candidatesInTransit.add(candidateId);
     updateButtonStates(window.currentChatState);
+    updateInterviewLoadingIndicator(window.currentChatState);
   }
   
   // NEW: Immediately refresh UI to show user message + loading (only if this candidate is currently displayed)
@@ -203,6 +204,7 @@ export function sendMessage(candidateId, message) {
       if (window.currentChatState) {
         window.currentChatState.candidatesInTransit.delete(candidateId);
         updateButtonStates(window.currentChatState);
+        updateInterviewLoadingIndicator(window.currentChatState);
       }
       
       // Notify UI to refresh
@@ -218,6 +220,7 @@ export function sendMessage(candidateId, message) {
       if (window.currentChatState) {
         window.currentChatState.candidatesInTransit.delete(candidateId);
         updateButtonStates(window.currentChatState);
+        updateInterviewLoadingIndicator(window.currentChatState);
       }
       
       // Button state management is now handled by the unified system
@@ -276,6 +279,23 @@ export function setCurrentChatContext(candidateId, chatLogElement, state) {
 }
 
 // ============================================================================
+// LOADING INDICATOR MANAGEMENT
+// ============================================================================
+
+// Simple function to show/hide loading indicator for interview questions
+function updateInterviewLoadingIndicator(state) {
+  const loadingIndicator = document.getElementById('interviewLoadingIndicator');
+  if (!loadingIndicator) return;
+  
+  const currentCandidateId = state.currentCandidate?.resumeId;
+  const hasMessageInTransit = currentCandidateId && 
+    state.candidatesInTransit && 
+    state.candidatesInTransit.has(currentCandidateId);
+  
+  loadingIndicator.style.display = hasMessageInTransit ? 'inline' : 'none';
+}
+
+// ============================================================================
 // UNIFIED BUTTON STATE MANAGEMENT
 // ============================================================================
 
@@ -307,12 +327,18 @@ export function updateButtonStates(state) {
   if (!state.currentCandidate || !state.currentCandidate.resumeId) {
     // No candidate selected - disable everything
     disableChatFunctionality();
+    
+    // Hide loading indicator when no candidate selected
+    updateInterviewLoadingIndicator(state);
     return;
   }
   
   const candidateId = state.currentCandidate.resumeId;
   const isSeeded = state.seededCandidates && state.seededCandidates.has(candidateId);
   const hasMessageInTransit = state.candidatesInTransit && state.candidatesInTransit.has(candidateId);
+  
+  // Update loading indicator for current candidate
+  updateInterviewLoadingIndicator(state);
   
   if (isSeeded && !hasMessageInTransit) {
     // Ready and no message in transit - enable everything
