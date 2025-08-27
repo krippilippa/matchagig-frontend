@@ -102,7 +102,7 @@ let selectedFiles = [];  // File[]
 
 function setupEventListeners() {
   // Landing page events
-  document.getElementById('useMockDataBtn').addEventListener('click', loadMockData);
+  document.getElementById('useSampleDataBtn').addEventListener('click', loadSampleData);
   uploadArea.addEventListener('click', handleUploadClick);
   uploadArea.addEventListener('dragOver', handleDragOver);
   uploadArea.addEventListener('dragleave', handleDragLeave);
@@ -203,23 +203,30 @@ async function handleRunMatch() {
   }
 }
 
-async function loadMockData() {
+async function loadSampleData() {
   try {
     // Load sample JD from the existing file
     const jdResponse = await fetch('sample-jd.txt');
     const jdText = await jdResponse.text();
     
-    // Populate the JD textarea (reusing existing element)
+    // Populate the JD textarea
     landingJdText.value = jdText;
     
-    // Load a few sample PDFs from the existing sample-resumes folder
+    // Load 10 sample PDFs from the existing sample-resumes folder
     const samplePdfPaths = [
       'sample-resumes/Resume_Alexandra_Novak.pdf',
       'sample-resumes/Resume_Angela_Martin_v2.pdf', 
-      'sample-resumes/Resume_Arjun_Patel_v2.pdf'
+      'sample-resumes/Resume_Arjun_Patel_v2.pdf',
+      'sample-resumes/Resume_Barbara_Novak.pdf',
+      'sample-resumes/Resume_David_Chen.pdf',
+      'sample-resumes/Resume_Karim_Abdallah.pdf',
+      'sample-resumes/Resume_Kevin_Tan.pdf',
+      'sample-resumes/Resume_Lina_Khaled_v2.pdf',
+      'sample-resumes/Resume_Maria_Lopez.pdf',
+      'sample-resumes/Resume_Omar_Hassan.pdf'
     ];
     
-    // Load PDFs as File objects (reusing existing file loading pattern)
+    // Load PDFs as File objects
     const pdfFiles = await Promise.all(
       samplePdfPaths.map(async (pdfPath) => {
         const response = await fetch(pdfPath);
@@ -228,20 +235,17 @@ async function loadMockData() {
       })
     );
     
-    // Set the files in the input (reusing existing pattern)
+    // Set the files in the input
     const dataTransfer = new DataTransfer();
     pdfFiles.forEach(file => dataTransfer.items.add(file));
     landingPdfInput.files = dataTransfer.files;
     
-    // Update upload status (reusing existing function)
+    // Update upload status to show the files are loaded
     updateUploadStatus(pdfFiles.length);
     
-    // Automatically trigger the existing run match flow (reusing existing function)
-    await handleRunMatch();
-    
   } catch (error) {
-    console.error('Error loading mock data:', error);
-    alert('Failed to load mock data. Please try uploading your own files.');
+    console.error('Error loading sample data:', error);
+    alert('Failed to load sample data. Please try uploading your own files.');
   }
 }
 
@@ -374,11 +378,16 @@ function handleDataViewClick() {
 
 // Upload status management
 function updateUploadStatus(fileCount) {
+  // Find the existing upload-text div
+  let uploadTextDiv = uploadArea.querySelector('.upload-text');
+  
   if (fileCount > 0) {
-    uploadArea.innerHTML = `<strong>${fileCount} PDF file(s) selected</strong><br>Ready to process`;
+    // Update text content while preserving the structure and CSS classes
+    uploadTextDiv.innerHTML = `<strong>${fileCount} PDF file(s) selected</strong><br>Ready to process`;
     uploadArea.style.borderColor = '#4CAF50';
   } else {
-    uploadArea.innerHTML = `<strong>Click to select PDFs</strong><br>or drag and drop here`;
+    // Restore original text with proper structure
+    uploadTextDiv.innerHTML = `<strong>Drag & drop résumés here</strong><br>or click to select files. We never save your files.`;
     uploadArea.style.borderColor = '#ccc';
   }
 }

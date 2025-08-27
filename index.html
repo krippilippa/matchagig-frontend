@@ -23,14 +23,20 @@
     <!-- New Landing Page Layout -->
     <div id="landingPage" class="landing-page">
       <div class="landing-container">
-        <div class="mock-data-section">
-          <button id="useMockDataBtn" class="run-match-btn">🚀 Use Mock Data (Demo)</button>
-          <div class="mock-data-tip">Try the system instantly with sample resumes and job description</div>
+        <!-- Hero Section -->
+        <div class="hero-section">
+          <h1 class="hero-title">Find your top candidates in minutes, not days.</h1>
+          <p class="hero-subtitle">Upload résumés, paste a job description, get ranked matches instantly.</p>
+        </div>
+
+        <!-- Sample Data Button -->
+        <div class="sample-data-section">
+          <button id="useSampleDataBtn" class="sample-data-btn">🚀 Try with Sample Data (10 resumes)</button>
         </div>
         
         <div class="upload-section">
           <div class="upload-box">
-            <h3>UPLOAD RÉSUMÉS (PDF, UP TO 500)</h3>
+            <h3>Upload Résumés</h3>
             <div class="upload-area" id="uploadArea">
               <div class="upload-text">
                 <strong>Drag & drop résumés here</strong><br>
@@ -38,16 +44,23 @@
               </div>
               <input type="file" id="landingPdfInput" accept="application/pdf" multiple style="display: none;" />
             </div>
-            <div class="upload-tip">Tip: You can also paste files later — this is just a demo UI.</div>
           </div>
           
           <div class="jd-box">
-            <h3>JOB DESCRIPTION</h3>
+            <h3>Paste Job Description (or use demo JD)</h3>
             <textarea id="landingJdText" rows="8" placeholder="Paste your job description here..."></textarea>
           </div>
         </div>
         
-        <button id="runMatchBtn" class="run-match-btn">Run Match</button>
+        <div class="run-match-section">
+          <button id="runMatchBtn" class="run-match-btn">Run Match</button>
+          <div id="progress" style="margin-top:6px; font-size:12px; color:#555;"></div>
+        </div>
+
+        <!-- Privacy Note -->
+        <div class="privacy-note">
+          <p>Demo only — resumes are processed in-memory and not stored.</p>
+        </div>
       </div>
     </div>
 
