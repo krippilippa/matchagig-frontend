@@ -152,6 +152,8 @@ html, body { height: 100%; margin: 0; }
 
 
 
+
+
 /* Privacy Note */
 .privacy-note {
   text-align: center;
@@ -504,9 +506,15 @@ button:disabled {
   cursor: not-allowed;
 }
 
-.spinner {
+.data-view-spinner {
   display: inline-block;
   margin-right: 5px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .progress-dot.processed {

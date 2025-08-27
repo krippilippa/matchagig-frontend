@@ -712,9 +712,9 @@ async function onSelectCandidate(e) {
     if (dataViewBtn) {
       dataViewBtn.disabled = true;
       if (dotStatus === 'processing') {
-        dataViewBtn.innerHTML = '<span class="spinner">⏳</span> Processing...';
+        dataViewBtn.innerHTML = '<span class="data-view-spinner">⏳</span> Processing...';
       } else {
-        dataViewBtn.innerHTML = '<span class="spinner">⏳</span> Waiting...';
+        dataViewBtn.innerHTML = '<span class="data-view-spinner">⏳</span> Waiting...';
       }
       dataViewBtn.style.opacity = '0.5';
     }
