@@ -214,9 +214,9 @@ async function loadMockData() {
     
     // Load a few sample PDFs from the existing sample-resumes folder
     const samplePdfPaths = [
-      'sample-resumes/Resumé.pdf',
-      'sample-resumes/Resume_SE.pdf', 
-      'sample-resumes/Resume v3 2025.pdf'
+      'sample-resumes/Resume_Alexandra_Novak.pdf',
+      'sample-resumes/Resume_Angela_Martin_v2.pdf', 
+      'sample-resumes/Resume_Arjun_Patel_v2.pdf'
     ];
     
     // Load PDFs as File objects (reusing existing file loading pattern)
@@ -356,21 +356,21 @@ function handleDataViewClick() {
 // BUSINESS LOGIC FUNCTIONS
 // ============================================================================
 
-// Helper function to check if a candidate is fully ready (extracted + seeded)
-async function isCandidateFullyReady(resumeId) {
-  try {
-    const record = await getResume(resumeId);
-    if (!record) return false;
+// // Helper function to check if a candidate is fully ready (extracted + seeded)
+// async function isCandidateFullyReady(resumeId) {
+//   try {
+//     const record = await getResume(resumeId);
+//     if (!record) return false;
     
-    const isSeeded = await isCandidateSeeded(resumeId);
-    const isExtracted = record.extractionStatus === 'extracted';
+//     const isSeeded = await isCandidateSeeded(resumeId);
+//     const isExtracted = record.extractionStatus === 'extracted';
     
-    return isSeeded && isExtracted;
-  } catch (error) {
-    console.error('Error checking candidate readiness:', error);
-    return false;
-  }
-}
+//     return isSeeded && isExtracted;
+//   } catch (error) {
+//     console.error('Error checking candidate readiness:', error);
+//     return false;
+//   }
+// }
 
 // Upload status management
 function updateUploadStatus(fileCount) {
