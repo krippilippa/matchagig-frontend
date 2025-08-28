@@ -1,7 +1,7 @@
 // Helper functions and utilities
 
 export function setStatus(statusEl, msg) { 
-  if (statusEl) statusEl.textContent = msg || ''; 
+  if (statusEl) statusEl.innerHTML = msg || ''; 
 }
 
 export function baseName(path) { 

@@ -260,18 +260,22 @@ async function loadSampleData() {
 
 async function handleBackToDemo() {
   try {
+    // Stop any ongoing extractions by clearing the state
+    state.candidates = [];
+    state.seededCandidates.clear();
+    state.candidatesInTransit.clear();
+    
     // Clear all storage using consolidated function
     await clearAllStorage();
     
     // Clear seeding status for all candidates
     await clearAllSeedingStatus();
     
-    // Reset state
+    // Reset state completely
     state.jdHash = null;
     state.jdTextSnapshot = '';
     state.jobTitle = '';
-    state.seededCandidates.clear();
-    state.candidatesInTransit.clear();
+    state.currentCandidate = null;
     
     // NEW: Reset the selectedFiles variable
     selectedFiles = [];
@@ -290,6 +294,9 @@ async function handleBackToDemo() {
     landingPdfInput.value = '';
     landingJdText.value = '';
     updateUploadStatus(0);
+    
+    // Refresh the page to completely reset everything
+    window.location.reload();
     
   } catch (error) {
     alert('Error resetting demo: ' + error.message);
@@ -436,7 +443,7 @@ async function processResumes() {
     const jdText = landingJdText.value.trim();
     const jdHash = jdHashEl.value.trim();
     
-    setStatus(statusEl, 'Uploading…');
+    setStatus(statusEl, '<span class="status-spinner">⏳</span> Running semantic match');
     const data = await bulkZipUpload(zipBlob, jdText, jdHash);
     
     // Extract job title from the response
@@ -515,11 +522,7 @@ async function processResumes() {
     renderList(listEl, state.candidates, onSelectCandidate, extractionStatuses);
     
     // Update status with JD hash info if available
-    if (state.jdHash) {
-      setStatus(statusEl, `✅ ${state.candidates.length} candidates processed. JD hash: ${state.jdHash}`);
-    } else {
       setStatus(statusEl, `✅ ${state.candidates.length} candidates processed.`);
-    }
     
     // NEW: Start sequential extraction for all resumes
     await processSequentialExtractions();
@@ -777,7 +780,7 @@ async function loadStoredCandidates() {
         
         // Render list with correct dot colors from the start
         renderList(listEl, results, onSelectCandidate, extractionStatuses);
-        setStatus(statusEl, `Loaded ${results.length} stored candidate(s).`);
+        setStatus(statusEl, `✅ ${state.candidates.length} candidates processed.`);
         
         // Initialize chat
         chatLog.innerHTML = '';
