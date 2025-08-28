@@ -574,7 +574,7 @@ async function processSequentialExtractions() {
         
         // NEW: Send initial chat message automatically after successful seeding
         if (seedResult.ok) {
-          const initialQuestion = "Is this a good match answer yes or now and a breif explentaiton why!";          
+          const initialQuestion = "In 2 sentences, give a fit snapshot for this candidate vs the JD. Sentence 1: Match: High/Medium/Low for the JD role + the single strongest evidence from the résumé (quote exact wording where possible). Sentence 2: The biggest risk or missing requirement (say “not shown in résumé” if absent). Be neutral and factual.";          
           // Send message - chat.js handles everything automatically
           sendMessage(candidate.resumeId, initialQuestion);
         }
