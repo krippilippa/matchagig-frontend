@@ -716,7 +716,7 @@ async function onSelectCandidate(e) {
       } else {
         dataViewBtn.innerHTML = '<span class="data-view-spinner">⏳</span> Waiting...';
       }
-      dataViewBtn.style.opacity = '0.5';
+
     }
     
     // Enable PDF view button (can still view PDF during processing)

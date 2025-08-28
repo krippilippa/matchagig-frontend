@@ -502,8 +502,13 @@ html, body { height: 100%; margin: 0; }
 
 /* Button states */
 button:disabled {
-  opacity: 0.5;
+  opacity: 0.8;
   cursor: not-allowed;
+}
+
+/* Specific override for view toggle buttons when disabled */
+.view-toggle-btn:disabled {
+  color: black;
 }
 
 .data-view-spinner {
