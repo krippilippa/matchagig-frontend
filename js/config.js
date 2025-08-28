@@ -9,7 +9,7 @@ export const CONFIG = {
   
   // API endpoints
   ENDPOINTS: {
-    BULK_ZIP: '/v1/bulk-zip', 
+    BULK_ZIP: '/v1/bulk-zip',
     CHAT_SEED: '/v1/chat/seed',
     CHAT_ASK: '/v1/chat/ask',
     RESUME_EXTRACT: '/v1/resume/extract'
