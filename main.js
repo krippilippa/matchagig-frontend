@@ -218,17 +218,14 @@ async function loadSampleData() {
     // Populate the JD textarea
     landingJdText.value = jdText;
     
-    // Load 10 sample PDFs from the existing sample-resumes folder
+    // Load 7 sample PDFs from the existing sample-resumes folder
     const samplePdfPaths = [
       'sample-resumes/Resume_Alexandra_Novak.pdf',
       'sample-resumes/Resume_Angela_Martin_v2.pdf', 
       'sample-resumes/Resume_Arjun_Patel_v2.pdf',
       'sample-resumes/Resume_Barbara_Novak.pdf',
-      'sample-resumes/Resume_David_Chen.pdf',
       'sample-resumes/Resume_Karim_Abdallah.pdf',
-      'sample-resumes/Resume_Kevin_Tan.pdf',
       'sample-resumes/Resume_Lina_Khaled_v2.pdf',
-      'sample-resumes/Resume_Maria_Lopez.pdf',
       'sample-resumes/Resume_Omar_Hassan.pdf'
     ];
     
